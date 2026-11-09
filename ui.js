@@ -11,18 +11,18 @@ const FONT = '"Noto Sans Mono", "M PLUS 1 Code", "MS Gothic", monospace';
 const TEXT_HALO = "0 0 3px rgba(0, 0, 0, 0.95), 0 1px 1px #000";
 // Фон страницы — пока просто картинка (сайта ещё нет, цвета не выбраны).
 const BACKGROUND_IMAGE = "img/bg.jpg";
-// Ширина обложки и плеера (они одной ширины, обложка квадратная).
-const MAX_WIDTH = 480;
-const MIN_WIDTH = 260;
-// Уже этого — панель плеера перестраивается в столбик (телефоны):
-// кнопкам нужно 230px, названию хотя бы 120px, плюс отступы панели.
-const NARROW_WIDTH = 410;
+// Обложка квадратная, по центру над плеером; плеер шире неё.
+const COVER_MAX_SIZE = 480;
+const COVER_MIN_SIZE = 220;
+const TRAY_MAX_WIDTH = 720;
+// Уже этого плеер перестраивается в столбик (телефоны): три колонки —
+// название 130px, кнопки с полосой 300px, громкость 130px — плюс зазоры и отступы панели.
+const WIDE_TRAY_MIN_WIDTH = 630;
 // Расстояние между обложкой и плеером.
 const BLOCK_GAP = 14;
 const PAGE_GUTTER = 16;
 const SEEK_STEP_SECONDS = 5;
-// На паузе обложка чуть уменьшается к нижнему краю, во время игры — в полный размер.
-const PAUSED_SCALE = 0.94;
+const VOLUME_STEP = 0.05;
 
 const REPEAT_LABELS = { off: "Повтор: выключен", all: "Повтор: весь плейлист", one: "Повтор: один трек" };
 
@@ -207,8 +207,11 @@ function toggleButton(label, part, icon) {
     };
 }
 
-/** Полоса прогресса на div'ах: клик и перетаскивание мышью или пальцем, стрелки с клавиатуры. */
-function createProgressBar({ onScrub, onSeek }) {
+/**
+ * Ползунок на div'ах — для перемотки и громкости: клик и перетаскивание мышью или пальцем, стрелки с клавиатуры.
+ * Работает в долях 0…1: onDrag — пока тянут, onCommit — когда отпустили или нажали клавишу.
+ */
+function createSlider({ label, part, knobSize, keyStep, onDrag, onCommit }) {
     const fill = el("div", {
         position: "absolute",
         left: "0",
@@ -234,9 +237,9 @@ function createProgressBar({ onScrub, onSeek }) {
         position: "absolute",
         top: "50%",
         left: "0%",
-        width: "13px",
-        height: "13px",
-        margin: "-6.5px 0 0 -6.5px",
+        width: `${knobSize}px`,
+        height: `${knobSize}px`,
+        margin: `${-knobSize / 2}px 0 0 ${-knobSize / 2}px`,
         boxSizing: "border-box",
         borderRadius: "50%",
         border: "1px solid rgba(255, 255, 255, 0.85)",
@@ -253,75 +256,74 @@ function createProgressBar({ onScrub, onSeek }) {
     }, {
         role: "slider",
         tabindex: "0",
-        "aria-label": "Перемотка",
+        "aria-label": label,
         "aria-valuemin": "0",
         "aria-valuemax": "0",
         "aria-valuenow": "0",
-        "data-part": "progress",
+        "data-part": part,
     }, [track, knob]);
 
-    let duration = 0;
-    let currentTime = 0;
+    // Пока двигать нечего (длина трека ещё неизвестна) — ползунок не реагирует.
+    let enabled = false;
+    let value = 0;
     let dragging = false;
-    let dragFraction = 0;
+    let dragValue = 0;
 
+    const clamp = (fraction) => Math.min(1, Math.max(0, fraction));
     const render = (fraction) => {
         fill.style.width = `${fraction * 100}%`;
         knob.style.left = `${fraction * 100}%`;
     };
-    const fractionAt = (clientX) => {
+    const dragTo = (clientX) => {
         const rect = track.getBoundingClientRect();
-        return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-    };
-    const scrubTo = (clientX) => {
-        dragFraction = fractionAt(clientX);
-        render(dragFraction);
-        onScrub(dragFraction * duration);
+        dragValue = clamp((clientX - rect.left) / rect.width);
+        render(dragValue);
+        onDrag(dragValue);
     };
 
     root.addEventListener("pointerdown", (event) => {
-        if (!duration) {
+        if (!enabled) {
             return;
         }
         dragging = true;
         root.setPointerCapture(event.pointerId);
-        scrubTo(event.clientX);
+        dragTo(event.clientX);
     });
     root.addEventListener("pointermove", (event) => {
         if (dragging) {
-            scrubTo(event.clientX);
+            dragTo(event.clientX);
         }
     });
-    // Перематываем, когда ползунок отпустили, а не на каждом движении.
     root.addEventListener("pointerup", () => {
         if (!dragging) {
             return;
         }
         dragging = false;
-        onSeek(dragFraction * duration);
+        onCommit(dragValue);
     });
-    // Жест забрал браузер — отменяем без перемотки.
+    // Жест забрал браузер — отменяем без изменений.
     root.addEventListener("pointercancel", () => {
         dragging = false;
-        render(duration ? currentTime / duration : 0);
+        render(value);
     });
     root.addEventListener("keydown", (event) => {
-        if (!duration) {
+        if (!enabled) {
             return;
         }
+        const step = keyStep();
         const target = {
-            ArrowLeft: currentTime - SEEK_STEP_SECONDS,
-            ArrowDown: currentTime - SEEK_STEP_SECONDS,
-            ArrowRight: currentTime + SEEK_STEP_SECONDS,
-            ArrowUp: currentTime + SEEK_STEP_SECONDS,
+            ArrowLeft: value - step,
+            ArrowDown: value - step,
+            ArrowRight: value + step,
+            ArrowUp: value + step,
             Home: 0,
-            End: duration,
+            End: 1,
         }[event.key];
         if (target === undefined) {
             return;
         }
         event.preventDefault();
-        onSeek(Math.min(duration, Math.max(0, target)));
+        onCommit(clamp(target));
     });
 
     return {
@@ -329,24 +331,28 @@ function createProgressBar({ onScrub, onSeek }) {
         get dragging() {
             return dragging;
         },
-        update(time, newDuration) {
-            currentTime = time;
-            duration = Number.isFinite(newDuration) ? newDuration : 0;
-            root.setAttribute("aria-valuemax", String(Math.floor(duration)));
-            root.setAttribute("aria-valuenow", String(Math.floor(time)));
-            root.setAttribute("aria-valuetext", `${formatTime(time)} из ${formatTime(duration)}`);
+        /** fraction — доля 0…1; now/max/text — что объявлять скринридеру. */
+        set(fraction, { enabled: isEnabled, now, max, text }) {
+            enabled = isEnabled;
+            value = clamp(fraction);
+            root.setAttribute("aria-valuemax", String(max));
+            root.setAttribute("aria-valuenow", String(now));
+            root.setAttribute("aria-valuetext", text);
             if (!dragging) {
-                render(duration ? Math.min(1, time / duration) : 0);
+                render(value);
             }
         },
     };
 }
 
 /**
- * Строит плеер внутри root. handlers: onPlayPause, onPrevious, onNext, onShuffle, onRepeat, onSeek(seconds).
+ * Строит плеер внутри root.
+ * handlers: onPlayPause, onPrevious, onNext, onShuffle, onRepeat, onSeek(seconds),
+ * onVolume(level 0…1, final — ползунок отпустили), onMute.
+ * volumeControl: false — регулятор громкости не показываем (на iPhone громкость меняют только кнопками).
  * Возвращает методы show*, которыми логика плеера обновляет экран.
  */
-export function createPlayerUI(root, handlers) {
+export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
     const placeholder = drawPlaceholderCover();
 
     document.documentElement.style.height = "100%";
@@ -386,9 +392,6 @@ export function createPlayerUI(root, handlers) {
         border: "1px solid rgba(0, 0, 0, 0.71)",
         background: "#000",
         boxShadow: "0 0 10px 5px rgba(0, 0, 0, 0.5)",
-        // уменьшается к нижнему краю — расстояние до плеера не растёт
-        transformOrigin: "center bottom",
-        transition: "transform 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.15)",
     }, { "data-part": "cover-card" }, [cover]);
 
     const title = el("div", {
@@ -456,11 +459,17 @@ export function createPlayerUI(root, handlers) {
     };
     const currentTime = el("span", { ...timeStyle, textAlign: "right" }, { "data-part": "time-current" }, ["0:00"]);
     const totalTime = el("span", { ...timeStyle, textAlign: "left" }, { "data-part": "time-total" }, ["0:00"]);
-    const progress = createProgressBar({
-        onScrub: (seconds) => {
-            currentTime.textContent = formatTime(seconds);
+    let duration = 0;
+    const progress = createSlider({
+        label: "Перемотка",
+        part: "progress",
+        knobSize: 13,
+        keyStep: () => (duration ? SEEK_STEP_SECONDS / duration : 0),
+        // пока тянешь — время показывает, куда перемотаем; сама перемотка — когда отпустил
+        onDrag: (fraction) => {
+            currentTime.textContent = formatTime(fraction * duration);
         },
-        onSeek: (seconds) => handlers.onSeek(seconds),
+        onCommit: (fraction) => handlers.onSeek(fraction * duration),
     });
     const progressRow = el("div", {
         gridArea: "progress",
@@ -468,6 +477,31 @@ export function createPlayerUI(root, handlers) {
         alignItems: "center",
         gap: "8px",
     }, {}, [currentTime, progress.root, totalTime]);
+
+    // громкость справа: значок динамика (клик — выключить/включить звук) и ползунок
+    const volumeIcons = {
+        high: glyph("volumeHigh", 22),
+        low: glyph("volumeLow", 22),
+        mute: glyph("volumeMute", 22),
+    };
+    const muteButton = iconButton("Выключить звук", "mute", el("span", { display: "grid" }, {}, Object.values(volumeIcons)), 32);
+    const volume = createSlider({
+        label: "Громкость",
+        part: "volume",
+        knobSize: 11,
+        keyStep: () => VOLUME_STEP,
+        // громкость меняется сразу, пока тянешь; запоминается — когда отпустил
+        onDrag: (level) => handlers.onVolume(level, false),
+        onCommit: (level) => handlers.onVolume(level, true),
+    });
+    const volumeRow = el("div", {
+        gridArea: "volume",
+        justifySelf: "end",
+        width: "100%",
+        maxWidth: "150px",
+        alignItems: "center",
+        gap: "6px",
+    }, { "data-part": "volume-row" }, [muteButton, volume.root]);
 
     // стеклянная панель — значения как у .tray на monotonousreign (оттуда же css.glass)
     const tray = el("div", {
@@ -482,7 +516,7 @@ export function createPlayerUI(root, handlers) {
         WebkitBackdropFilter: "blur(8px)",
         border: "1px solid rgba(0, 0, 0, 0.71)",
         boxShadow: "0 0 10px 5px rgba(0, 0, 0, 0.5), inset 0 -10px 10px rgba(255, 255, 255, 0.5), inset 0 2px 12px rgba(255, 255, 255, 0.5)",
-    }, { "data-part": "tray" }, [info, controls, progressRow]);
+    }, { "data-part": "tray" }, [info, controls, progressRow, volumeRow]);
 
     // два независимых блока: обложка сверху, плеер под ней
     const column = el("div", {
@@ -494,45 +528,35 @@ export function createPlayerUI(root, handlers) {
 
     root.append(background, column);
 
-    function setTrayLayout(narrow) {
-        Object.assign(tray.style, narrow
+    function setTrayLayout(wide) {
+        Object.assign(tray.style, wide
             ? {
+                // как в Spotify: слева название, по центру кнопки и широкая полоса под ними, справа громкость
+                gridTemplateColumns: "minmax(130px, 1fr) minmax(300px, 2.4fr) minmax(130px, 1fr)",
+                gridTemplateAreas: '"info controls volume" "info progress volume"',
+                rowGap: "4px",
+                columnGap: "16px",
+            }
+            : {
                 gridTemplateColumns: "minmax(0, 1fr)",
                 gridTemplateAreas: '"info" "controls" "progress"',
                 rowGap: "10px",
                 columnGap: "0px",
-            }
-            : {
-                // слева название и артист, справа кнопки и полоса под ними — как в Spotify
-                gridTemplateColumns: "minmax(120px, 1fr) minmax(230px, 1.4fr)",
-                gridTemplateAreas: '"info controls" "info progress"',
-                rowGap: "4px",
-                columnGap: "18px",
             });
-    }
-
-    /** Ширина, при которой обложка + зазор + плеер влезают в экран и по ширине, и по высоте. */
-    function fitWidth(narrow) {
-        setTrayLayout(narrow);
-        const freeWidth = window.innerWidth - PAGE_GUTTER * 2;
-        tray.style.width = `${Math.min(MAX_WIDTH, freeWidth)}px`;
-        const freeHeight = window.innerHeight - PAGE_GUTTER * 2 - BLOCK_GAP - tray.offsetHeight;
-        return Math.floor(Math.min(MAX_WIDTH, freeWidth, freeHeight));
+        // на телефоне громкость — кнопками сбоку, как у Spotify и Apple Music
+        volumeRow.style.display = wide && volumeControl ? "flex" : "none";
     }
 
     function layout() {
-        let narrow = false;
-        let width = fitWidth(false);
-        if (width < NARROW_WIDTH) {
-            narrow = true;
-            width = fitWidth(true);
-        }
+        const trayWidth = Math.min(TRAY_MAX_WIDTH, window.innerWidth - PAGE_GUTTER * 2);
+        setTrayLayout(trayWidth >= WIDE_TRAY_MIN_WIDTH);
+        tray.style.width = `${trayWidth}px`;
+        // обложка — сколько влезает над плеером по высоте экрана, но не шире плеера
+        const freeHeight = window.innerHeight - PAGE_GUTTER * 2 - BLOCK_GAP - tray.offsetHeight;
         // совсем маленький экран — пусть лучше прокручивается, чем обложка станет с марку
-        width = Math.max(MIN_WIDTH, width);
-        setTrayLayout(narrow);
-        coverCard.style.width = `${width}px`;
-        coverCard.style.height = `${width}px`;
-        tray.style.width = `${width}px`;
+        const coverSize = Math.max(COVER_MIN_SIZE, Math.floor(Math.min(COVER_MAX_SIZE, trayWidth, freeHeight)));
+        coverCard.style.width = `${coverSize}px`;
+        coverCard.style.height = `${coverSize}px`;
     }
     window.addEventListener("resize", layout);
     layout();
@@ -564,6 +588,7 @@ export function createPlayerUI(root, handlers) {
     next.addEventListener("click", () => handlers.onNext());
     shuffle.button.addEventListener("click", () => handlers.onShuffle());
     repeat.button.addEventListener("click", () => handlers.onRepeat());
+    muteButton.addEventListener("click", () => handlers.onMute());
 
     const ui = {
         showTrack(track) {
@@ -582,14 +607,29 @@ export function createPlayerUI(root, handlers) {
         showPlaying(isPlaying) {
             orb.setPlaying(isPlaying);
             play.setAttribute("aria-label", isPlaying ? "Пауза" : "Играть");
-            coverCard.style.transform = isPlaying ? "scale(1)" : `scale(${PAUSED_SCALE})`;
         },
-        showTime(time, duration) {
-            progress.update(time, duration);
+        showTime(time, newDuration) {
+            duration = Number.isFinite(newDuration) ? newDuration : 0;
+            progress.set(duration ? time / duration : 0, {
+                enabled: duration > 0,
+                now: Math.floor(time),
+                max: Math.floor(duration),
+                text: `${formatTime(time)} из ${formatTime(duration)}`,
+            });
             if (!progress.dragging) {
                 currentTime.textContent = formatTime(time);
             }
-            totalTime.textContent = formatTime(duration);
+            totalTime.textContent = formatTime(newDuration);
+        },
+        showVolume(level, muted) {
+            const audible = muted ? 0 : level;
+            const percent = Math.round(audible * 100);
+            volume.set(audible, { enabled: true, now: percent, max: 100, text: `${percent}%` });
+            const icon = audible === 0 ? "mute" : audible < 0.5 ? "low" : "high";
+            for (const [name, node] of Object.entries(volumeIcons)) {
+                node.style.display = name === icon ? "" : "none";
+            }
+            muteButton.setAttribute("aria-label", audible === 0 ? "Включить звук" : "Выключить звук");
         },
         showShuffle(on) {
             shuffle.setActive(on);
@@ -603,5 +643,6 @@ export function createPlayerUI(root, handlers) {
     ui.showPlaying(false);
     ui.showShuffle(false);
     ui.showRepeat("off");
+    ui.showVolume(1, false);
     return ui;
 }

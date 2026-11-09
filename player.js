@@ -6,9 +6,40 @@ import { createPlayerUI } from "./ui.js";
 const REPEAT_MODES = ["off", "all", "one"];
 // Как в Spotify: «назад» после 3 секунд трека сначала перематывает его в начало.
 const RESTART_THRESHOLD_SECONDS = 3;
+const VOLUME_STORAGE_KEY = "player.volume";
+
+/** На iPhone и iPad громкость сайту не подвластна: audio.volume там не записывается. */
+function canControlVolume() {
+    const probe = document.createElement("audio");
+    probe.volume = 0.5;
+    return probe.volume === 0.5;
+}
+
+/** Громкость, выставленная в прошлый раз; нет её — полная. */
+function loadVolume() {
+    try {
+        const saved = Number(localStorage.getItem(VOLUME_STORAGE_KEY));
+        return saved > 0 && saved <= 1 ? saved : 1;
+    } catch {
+        // хранилище недоступно (приватный режим, запрет сайта) — просто полная громкость
+        return 1;
+    }
+}
+
+function saveVolume(level) {
+    try {
+        localStorage.setItem(VOLUME_STORAGE_KEY, String(level));
+    } catch {
+        // не запомнили — не страшно: в следующий раз будет полная громкость
+    }
+}
 
 const audio = new Audio();
 audio.preload = "metadata";
+const volumeControl = canControlVolume();
+if (volumeControl) {
+    audio.volume = loadVolume();
+}
 
 let tracks = [];
 // Порядок проигрывания: номера треков; при shuffle — перемешанные.
@@ -29,7 +60,26 @@ const ui = createPlayerUI(document.body, {
             audio.currentTime = seconds;
         }
     },
-});
+    onVolume: (level, final) => {
+        audio.muted = false;
+        audio.volume = level;
+        // Запоминаем только отпущенное значение и не ноль: иначе, утянув ползунок в ноль,
+        // запомнили бы промежуточные 3–4%, и «включить звук» вернул бы почти тишину.
+        if (final && level > 0) {
+            saveVolume(level);
+        }
+    },
+    onMute: () => {
+        if (audio.muted) {
+            audio.muted = false;
+        } else if (audio.volume === 0) {
+            audio.volume = loadVolume();
+        } else {
+            audio.muted = true;
+        }
+    },
+}, { volumeControl });
+ui.showVolume(audio.volume, audio.muted);
 
 function identityOrder() {
     return tracks.map((_, index) => index);
@@ -118,6 +168,7 @@ audio.addEventListener("play", () => ui.showPlaying(true));
 audio.addEventListener("pause", () => ui.showPlaying(false));
 audio.addEventListener("timeupdate", () => ui.showTime(audio.currentTime, audio.duration));
 audio.addEventListener("durationchange", () => ui.showTime(audio.currentTime, audio.duration));
+audio.addEventListener("volumechange", () => ui.showVolume(audio.volume, audio.muted));
 
 audio.addEventListener("ended", () => {
     if (position === order.length - 1 && repeat === "off") {
