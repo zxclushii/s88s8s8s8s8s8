@@ -1,5 +1,5 @@
 // Внешний вид плеера — всё строится и рисуется из JS.
-// Раскладка как у плеера Spotify, обложка сверху как в старом плеере,
+// Обложка — отдельная карточка, под ней независимый плеер (раскладка как у Spotify),
 // стеклянная панель и чёрный глянец — как на monotonousreign.neocities.org (7.css, Aero).
 
 import { glossyGlyph, glossyOrb, repeatOneMark } from "./gloss.js";
@@ -9,12 +9,20 @@ const FONT = '"Noto Sans Mono", "M PLUS 1 Code", "MS Gothic", monospace';
 // Белый текст на стекле читается на любой обложке благодаря тёмному ореолу.
 // (Жёсткая обводка 1px, как у подписей на monotonousreign, на мелком тонком шрифте выглядит полой.)
 const TEXT_HALO = "0 0 3px rgba(0, 0, 0, 0.95), 0 1px 1px #000";
-const MAX_CARD_WIDTH = 520;
-// Карточка уже этого — панель перестраивается в столбик (телефоны).
-const NARROW_CARD_WIDTH = 460;
+// Фон страницы — пока просто картинка (сайта ещё нет, цвета не выбраны).
+const BACKGROUND_IMAGE = "img/bg.jpg";
+// Ширина обложки и плеера (они одной ширины, обложка квадратная).
+const MAX_WIDTH = 480;
+const MIN_WIDTH = 260;
+// Уже этого — панель плеера перестраивается в столбик (телефоны):
+// кнопкам нужно 230px, названию хотя бы 120px, плюс отступы панели.
+const NARROW_WIDTH = 410;
+// Расстояние между обложкой и плеером.
+const BLOCK_GAP = 14;
 const PAGE_GUTTER = 16;
 const SEEK_STEP_SECONDS = 5;
-const PLAYING_ZOOM = 1.1;
+// На паузе обложка чуть уменьшается к нижнему краю, во время игры — в полный размер.
+const PAUSED_SCALE = 0.94;
 
 const REPEAT_LABELS = { off: "Повтор: выключен", all: "Повтор: весь плейлист", one: "Повтор: один трек" };
 
@@ -353,29 +361,35 @@ export function createPlayerUI(root, handlers) {
         fontFamily: FONT,
     });
 
-    // размытая обложка на весь экран, как в старом плеере
     const background = el("img", {
         position: "fixed",
         inset: "0",
         width: "100%",
         height: "100%",
         objectFit: "cover",
-        filter: "blur(14px)",
-        // blur делает края полупрозрачными — увеличиваем, чтобы мутная кромка ушла за экран
-        transform: "scale(1.12)",
         zIndex: "-1",
-    }, { alt: "", "data-part": "background" });
+    }, { alt: "", src: BACKGROUND_IMAGE, "data-part": "background" });
 
-    // обложка сверху карточки: режем от верхнего края и приближаем, пока играет — как раньше
+    // обложка — отдельная квадратная карточка над плеером, ничем не перекрыта
     const cover = el("img", {
-        position: "absolute",
-        inset: "0",
+        display: "block",
         width: "100%",
         height: "100%",
         objectFit: "cover",
-        objectPosition: "top",
-        transition: "transform 1s ease",
     }, { alt: "", "data-part": "cover" });
+    const coverCard = el("div", {
+        position: "relative",
+        // рамка входит в ширину, иначе карточка шире расчётной на 2px
+        boxSizing: "border-box",
+        overflow: "hidden",
+        borderRadius: "12px",
+        border: "1px solid rgba(0, 0, 0, 0.71)",
+        background: "#000",
+        boxShadow: "0 0 10px 5px rgba(0, 0, 0, 0.5)",
+        // уменьшается к нижнему краю — расстояние до плеера не растёт
+        transformOrigin: "center bottom",
+        transition: "transform 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.15)",
+    }, { "data-part": "cover-card" }, [cover]);
 
     const title = el("div", {
         maxWidth: "100%",
@@ -384,7 +398,9 @@ export function createPlayerUI(root, handlers) {
         color: "#fff",
         fontSize: "15px",
         fontWeight: "700",
-        lineHeight: "1.25",
+        // высота фиксирована: раскладка меряет плеер ещё до того, как появится текст
+        height: "25px",
+        lineHeight: "19px",
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -399,7 +415,8 @@ export function createPlayerUI(root, handlers) {
         padding: "0 7px",
         color: "#f2f2f2",
         fontSize: "12px",
-        lineHeight: "1.25",
+        height: "15px",
+        lineHeight: "15px",
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -454,10 +471,8 @@ export function createPlayerUI(root, handlers) {
 
     // стеклянная панель — значения как у .tray на monotonousreign (оттуда же css.glass)
     const tray = el("div", {
-        position: "absolute",
-        left: "10px",
-        right: "10px",
-        bottom: "10px",
+        position: "relative",
+        boxSizing: "border-box",
         padding: "12px 16px",
         display: "grid",
         alignItems: "center",
@@ -469,25 +484,17 @@ export function createPlayerUI(root, handlers) {
         boxShadow: "0 0 10px 5px rgba(0, 0, 0, 0.5), inset 0 -10px 10px rgba(255, 255, 255, 0.5), inset 0 2px 12px rgba(255, 255, 255, 0.5)",
     }, { "data-part": "tray" }, [info, controls, progressRow]);
 
-    const card = el("div", {
-        position: "relative",
-        // рамка входит в ширину, иначе карточка шире расчётной на 2px и съедает отступ
-        boxSizing: "border-box",
-        overflow: "hidden",
-        isolation: "isolate",
-        borderRadius: "12px",
-        border: "1px solid rgba(0, 0, 0, 0.85)",
-        background: "#000",
-        boxShadow: "0 0 10px 5px rgba(0, 0, 0, 0.5), 0 24px 60px rgba(0, 0, 0, 0.45)",
-    }, { "data-part": "card" }, [cover, tray]);
+    // два независимых блока: обложка сверху, плеер под ней
+    const column = el("div", {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: `${BLOCK_GAP}px`,
+    }, { "data-part": "player" }, [coverCard, tray]);
 
-    root.append(background, card);
+    root.append(background, column);
 
-    function layout() {
-        const width = Math.min(MAX_CARD_WIDTH, window.innerWidth - PAGE_GUTTER * 2);
-        const narrow = width < NARROW_CARD_WIDTH;
-        card.style.width = `${width}px`;
-        card.style.height = `${Math.round(width * (narrow ? 1.16 : 0.8))}px`;
+    function setTrayLayout(narrow) {
         Object.assign(tray.style, narrow
             ? {
                 gridTemplateColumns: "minmax(0, 1fr)",
@@ -497,11 +504,35 @@ export function createPlayerUI(root, handlers) {
             }
             : {
                 // слева название и артист, справа кнопки и полоса под ними — как в Spotify
-                gridTemplateColumns: "180px minmax(0, 1fr)",
+                gridTemplateColumns: "minmax(120px, 1fr) minmax(230px, 1.4fr)",
                 gridTemplateAreas: '"info controls" "info progress"',
                 rowGap: "4px",
                 columnGap: "18px",
             });
+    }
+
+    /** Ширина, при которой обложка + зазор + плеер влезают в экран и по ширине, и по высоте. */
+    function fitWidth(narrow) {
+        setTrayLayout(narrow);
+        const freeWidth = window.innerWidth - PAGE_GUTTER * 2;
+        tray.style.width = `${Math.min(MAX_WIDTH, freeWidth)}px`;
+        const freeHeight = window.innerHeight - PAGE_GUTTER * 2 - BLOCK_GAP - tray.offsetHeight;
+        return Math.floor(Math.min(MAX_WIDTH, freeWidth, freeHeight));
+    }
+
+    function layout() {
+        let narrow = false;
+        let width = fitWidth(false);
+        if (width < NARROW_WIDTH) {
+            narrow = true;
+            width = fitWidth(true);
+        }
+        // совсем маленький экран — пусть лучше прокручивается, чем обложка станет с марку
+        width = Math.max(MIN_WIDTH, width);
+        setTrayLayout(narrow);
+        coverCard.style.width = `${width}px`;
+        coverCard.style.height = `${width}px`;
+        tray.style.width = `${width}px`;
     }
     window.addEventListener("resize", layout);
     layout();
@@ -513,18 +544,14 @@ export function createPlayerUI(root, handlers) {
     }
 
     function setCover(url) {
-        const source = url ?? placeholder;
-        cover.src = source;
-        background.src = source;
+        cover.src = url ?? placeholder;
     }
-    for (const image of [cover, background]) {
-        image.addEventListener("error", () => {
-            // .jpg есть в списке API, но не грузится — ставим заглушку (проверка спасает от цикла)
-            if (image.src !== placeholder) {
-                image.src = placeholder;
-            }
-        });
-    }
+    cover.addEventListener("error", () => {
+        // .jpg есть в списке API, но не грузится — ставим заглушку (проверка спасает от цикла)
+        if (cover.src !== placeholder) {
+            cover.src = placeholder;
+        }
+    });
 
     function setRepeatMode(mode) {
         repeat.setActive(mode !== "off");
@@ -555,7 +582,7 @@ export function createPlayerUI(root, handlers) {
         showPlaying(isPlaying) {
             orb.setPlaying(isPlaying);
             play.setAttribute("aria-label", isPlaying ? "Пауза" : "Играть");
-            cover.style.transform = isPlaying ? `scale(${PLAYING_ZOOM})` : "scale(1)";
+            coverCard.style.transform = isPlaying ? "scale(1)" : `scale(${PAUSED_SCALE})`;
         },
         showTime(time, duration) {
             progress.update(time, duration);
