@@ -120,32 +120,6 @@ function drawPlaceholderCover() {
     return canvas.toDataURL("image/png");
 }
 
-/** Полутоновые точки у правого края панели (как на тех папках): к центру панели тают. */
-function drawHalftone(width, height) {
-    // на узкой панели (телефон) полоса уже, чтобы точки не забивали кнопки
-    const band = Math.min(120, width * 0.22);
-    const ratio = window.devicePixelRatio || 1;
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(width * ratio));
-    canvas.height = Math.max(1, Math.round(height * ratio));
-    const ctx = canvas.getContext("2d");
-    ctx.scale(ratio, ratio);
-    ctx.fillStyle = "#000";
-    const step = 6;
-    for (let x = width - step / 2; x > width - band; x -= step) {
-        const radius = ((x - (width - band)) / band) * step * 0.5;
-        if (radius < 0.3) {
-            continue;
-        }
-        for (let y = step / 2; y < height; y += step) {
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-    return canvas.toDataURL("image/png");
-}
-
 /** Чёрное свечение при наведении — как .tab:hover на monotonousreign. */
 function addHoverGlow(node) {
     let glow = null;
@@ -478,18 +452,6 @@ export function createPlayerUI(root, handlers) {
         gap: "8px",
     }, {}, [currentTime, progress.root, totalTime]);
 
-    const halftone = el("div", {
-        position: "absolute",
-        inset: "0",
-        // под текстом и кнопками, но над стеклом
-        zIndex: "-1",
-        borderRadius: "inherit",
-        pointerEvents: "none",
-        opacity: "0.14",
-        backgroundRepeat: "no-repeat",
-        backgroundSize: "100% 100%",
-    });
-
     // стеклянная панель — значения как у .tray на monotonousreign (оттуда же css.glass)
     const tray = el("div", {
         position: "absolute",
@@ -505,7 +467,7 @@ export function createPlayerUI(root, handlers) {
         WebkitBackdropFilter: "blur(8px)",
         border: "1px solid rgba(0, 0, 0, 0.71)",
         boxShadow: "0 0 10px 5px rgba(0, 0, 0, 0.5), inset 0 -10px 10px rgba(255, 255, 255, 0.5), inset 0 2px 12px rgba(255, 255, 255, 0.5)",
-    }, { "data-part": "tray" }, [halftone, info, controls, progressRow]);
+    }, { "data-part": "tray" }, [info, controls, progressRow]);
 
     const card = el("div", {
         position: "relative",
@@ -543,10 +505,6 @@ export function createPlayerUI(root, handlers) {
     }
     window.addEventListener("resize", layout);
     layout();
-    // точки перерисовываем под реальный размер панели: на телефоне она выше и уже
-    new ResizeObserver(() => {
-        halftone.style.backgroundImage = `url(${drawHalftone(tray.clientWidth, tray.clientHeight)})`;
-    }).observe(tray);
 
     function setText(node, text) {
         node.textContent = text;
