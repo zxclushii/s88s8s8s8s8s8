@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Плеер</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap">
+    <link rel="stylesheet" href="player.css">
+    <script type="module" src="player.js"></script>
+</head>
+<body>
+    <img id="background" src="img/cover.svg" alt="">
+    <audio id="song" preload="metadata"></audio>
+
+    <div class="container">
+        <div class="box"></div>
+        <img id="thumbnail" src="img/cover.svg" alt="">
+
+        <button id="play-pause" type="button" aria-label="Играть"><img src="img/play.gif" alt=""></button>
+        <button id="next-song" type="button" aria-label="Следующий трек"><img src="img/next.gif" alt=""></button>
+        <button id="previous-song" type="button" aria-label="Предыдущий трек"><img src="img/prev.gif" alt=""></button>
+
+        <div class="song-artist"></div>
+        <div class="song-title"></div>
+
+        <input type="range" id="progress-bar" min="0" max="0" value="0" aria-label="Перемотка">
+
+        <div class="currentTime">0:00</div>
+        <div class="durationTime">0:00</div>
+    </div>
+</body>
+</html>
