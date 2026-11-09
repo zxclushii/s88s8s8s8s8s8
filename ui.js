@@ -342,7 +342,76 @@ function createSlider({ label, part, knobSize, keyStep, onDrag, onCommit }) {
                 render(value);
             }
         },
+        /** thickness — толщина полосы, height — высота области под палец, knob — показывать ли ползунок. */
+        setLook({ thickness, height, knob: showKnob }) {
+            root.style.height = `${height}px`;
+            track.style.height = `${thickness}px`;
+            track.style.marginTop = `${-thickness / 2}px`;
+            track.style.borderRadius = `${thickness / 2}px`;
+            fill.style.borderRadius = `${thickness / 2}px`;
+            knob.style.display = showKnob ? "" : "none";
+        },
     };
+}
+
+// Чёрная подложка под названием, как у подписей папок на monotonousreign: тает вправо
+// (название слева) или в обе стороны (название по центру).
+const LABEL_FADE_RIGHT = "linear-gradient(to right, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0))";
+const LABEL_FADE_BOTH = "linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.85) 22%, rgba(0, 0, 0, 0.85) 78%, rgba(0, 0, 0, 0))";
+
+// Две раскладки панели.
+// Компьютер — как Spotify: название слева, кнопки и широкая полоса по центру, громкость справа.
+// Телефон — как плеер на айфоне: название по центру, под ним полоса трека, ниже крупные кнопки; углы круглее.
+const LAYOUTS = {
+    wide: {
+        tray: {
+            padding: "12px 16px",
+            borderRadius: "10px",
+            gridTemplateColumns: "minmax(130px, 1fr) minmax(300px, 2.4fr) minmax(130px, 1fr)",
+            gridTemplateAreas: '"info controls volume" "info progress volume"',
+            gap: "4px 16px",
+        },
+        coverRadius: "12px",
+        info: { alignItems: "flex-start" },
+        title: { fontSize: "15px", height: "25px", lineHeight: "19px", padding: "3px 14px 3px 7px", background: LABEL_FADE_RIGHT },
+        artist: { fontSize: "12px", height: "15px", lineHeight: "15px", marginTop: "6px", padding: "0 7px" },
+        times: { fontSize: "11px", minWidth: "38px" },
+        controls: { justifyContent: "center", gap: "10px" },
+        sizes: { orb: 46, play: 50, skipIcon: 24, skip: 36, toggleIcon: 22, toggle: 34 },
+        bar: { thickness: 5, height: 18, knob: true },
+        remainingTime: false,
+    },
+    narrow: {
+        tray: {
+            padding: "16px 16px 12px",
+            borderRadius: "22px",
+            gridTemplateColumns: "minmax(0, 1fr)",
+            gridTemplateAreas: '"info" "progress" "controls"',
+            gap: "12px 0px",
+        },
+        coverRadius: "18px",
+        info: { alignItems: "center" },
+        title: { fontSize: "17px", height: "27px", lineHeight: "21px", padding: "3px 26px", background: LABEL_FADE_BOTH },
+        artist: { fontSize: "14px", height: "17px", lineHeight: "17px", marginTop: "4px", padding: "0 8px" },
+        times: { fontSize: "12px", minWidth: "44px" },
+        // кнопки поровну по всей ширине: shuffle и repeat у краёв (там, где у айфона наушники),
+        // и на узком телефоне ничего не вылезает за панель
+        controls: { justifyContent: "space-between", gap: "0px" },
+        sizes: { orb: 56, play: 60, skipIcon: 30, skip: 44, toggleIcon: 24, toggle: 38 },
+        // полоса толще и без ползунка, как у айфона; область под палец повыше
+        bar: { thickness: 7, height: 26, knob: false },
+        remainingTime: true,
+    },
+};
+
+function setBox(node, size) {
+    node.style.width = `${size}px`;
+    node.style.height = `${size}px`;
+}
+
+function setIconSize(svgNode, size) {
+    svgNode.setAttribute("width", String(size));
+    svgNode.setAttribute("height", String(size));
 }
 
 /**
@@ -394,32 +463,21 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
         boxShadow: "0 0 10px 5px rgba(0, 0, 0, 0.5)",
     }, { "data-part": "cover-card" }, [cover]);
 
+    // размеры шрифта, отступы и подложка зависят от раскладки — см. LAYOUTS
     const title = el("div", {
         maxWidth: "100%",
         boxSizing: "border-box",
-        padding: "3px 14px 3px 7px",
         color: "#fff",
-        fontSize: "15px",
         fontWeight: "700",
-        // высота фиксирована: раскладка меряет плеер ещё до того, как появится текст
-        height: "25px",
-        lineHeight: "19px",
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
         textShadow: "0 1px 2px rgba(0, 0, 0, 0.9)",
-        // чёрная подложка, тающая вправо — как у подписей папок на том сайте
-        background: "linear-gradient(to right, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0))",
     }, { "data-part": "title" });
     const artist = el("div", {
         maxWidth: "100%",
         boxSizing: "border-box",
-        marginTop: "6px",
-        padding: "0 7px",
         color: "#f2f2f2",
-        fontSize: "12px",
-        height: "15px",
-        lineHeight: "15px",
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -430,14 +488,16 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
         minWidth: "0",
         display: "flex",
         flexDirection: "column",
-        alignItems: "flex-start",
     }, {}, [title, artist]);
 
-    const shuffle = toggleButton("Перемешать", "shuffle", glyph("shuffle", 22));
-    const previous = iconButton("Предыдущий трек", "previous", glyph("previous", 24), 36);
+    const shuffleIcon = glyph("shuffle", 22);
+    const shuffle = toggleButton("Перемешать", "shuffle", shuffleIcon);
+    const previousIcon = glyph("previous", 24);
+    const previous = iconButton("Предыдущий трек", "previous", previousIcon, 36);
     const orb = glossyOrb(46);
     const play = iconButton("Играть", "play", orb.root, 50);
-    const next = iconButton("Следующий трек", "next", glyph("next", 24), 36);
+    const nextIcon = glyph("next", 24);
+    const next = iconButton("Следующий трек", "next", nextIcon, 36);
     const repeatIcon = glyph("repeat", 22);
     const repeatOne = repeatOneMark();
     repeatIcon.append(repeatOne);
@@ -446,29 +506,30 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
         gridArea: "controls",
         display: "flex",
         alignItems: "center",
-        justifyContent: "center",
-        gap: "10px",
     }, {}, [shuffle.button, previous, play, next, repeat.button]);
 
     const timeStyle = {
-        minWidth: "38px",
         color: "#fff",
-        fontSize: "11px",
         textShadow: TEXT_HALO,
         fontVariantNumeric: "tabular-nums",
     };
-    const currentTime = el("span", { ...timeStyle, textAlign: "right" }, { "data-part": "time-current" }, ["0:00"]);
-    const totalTime = el("span", { ...timeStyle, textAlign: "left" }, { "data-part": "time-total" }, ["0:00"]);
+    const currentTime = el("span", timeStyle, { "data-part": "time-current" }, ["0:00"]);
+    const totalTime = el("span", timeStyle, { "data-part": "time-total" }, ["0:00"]);
     let duration = 0;
+    let lastTime = 0;
+    // на телефоне справа — сколько осталось («−2:01»), как у айфона; на компьютере — длина трека
+    let showRemaining = false;
+    function renderTimes(time) {
+        currentTime.textContent = formatTime(time);
+        totalTime.textContent = showRemaining ? `−${formatTime(Math.max(0, duration - time))}` : formatTime(duration);
+    }
     const progress = createSlider({
         label: "Перемотка",
         part: "progress",
         knobSize: 13,
         keyStep: () => (duration ? SEEK_STEP_SECONDS / duration : 0),
         // пока тянешь — время показывает, куда перемотаем; сама перемотка — когда отпустил
-        onDrag: (fraction) => {
-            currentTime.textContent = formatTime(fraction * duration);
-        },
+        onDrag: (fraction) => renderTimes(fraction * duration),
         onCommit: (fraction) => handlers.onSeek(fraction * duration),
     });
     const progressRow = el("div", {
@@ -507,10 +568,8 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
     const tray = el("div", {
         position: "relative",
         boxSizing: "border-box",
-        padding: "12px 16px",
         display: "grid",
         alignItems: "center",
-        borderRadius: "10px",
         background: "rgba(252, 250, 250, 0.09)",
         backdropFilter: "blur(8px)",
         WebkitBackdropFilter: "blur(8px)",
@@ -529,20 +588,31 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
     root.append(background, column);
 
     function setTrayLayout(wide) {
-        Object.assign(tray.style, wide
-            ? {
-                // как в Spotify: слева название, по центру кнопки и широкая полоса под ними, справа громкость
-                gridTemplateColumns: "minmax(130px, 1fr) minmax(300px, 2.4fr) minmax(130px, 1fr)",
-                gridTemplateAreas: '"info controls volume" "info progress volume"',
-                rowGap: "4px",
-                columnGap: "16px",
-            }
-            : {
-                gridTemplateColumns: "minmax(0, 1fr)",
-                gridTemplateAreas: '"info" "controls" "progress"',
-                rowGap: "10px",
-                columnGap: "0px",
-            });
+        const look = wide ? LAYOUTS.wide : LAYOUTS.narrow;
+        Object.assign(tray.style, look.tray);
+        coverCard.style.borderRadius = look.coverRadius;
+        Object.assign(info.style, look.info);
+        Object.assign(title.style, look.title);
+        Object.assign(artist.style, look.artist);
+        // время прижато к полосе на компьютере и к краям панели на телефоне
+        Object.assign(currentTime.style, look.times, { textAlign: wide ? "right" : "left" });
+        Object.assign(totalTime.style, look.times, { textAlign: wide ? "left" : "right" });
+        Object.assign(controls.style, look.controls);
+
+        const { sizes } = look;
+        setBox(play, sizes.play);
+        setIconSize(orb.root, sizes.orb);
+        for (const [button, icon] of [[previous, previousIcon], [next, nextIcon]]) {
+            setBox(button, sizes.skip);
+            setIconSize(icon, sizes.skipIcon);
+        }
+        for (const [button, icon] of [[shuffle.button, shuffleIcon], [repeat.button, repeatIcon]]) {
+            setBox(button, sizes.toggle);
+            setIconSize(icon, sizes.toggleIcon);
+        }
+        progress.setLook(look.bar);
+        showRemaining = look.remainingTime;
+        renderTimes(lastTime);
         // на телефоне громкость — кнопками сбоку, как у Spotify и Apple Music
         volumeRow.style.display = wide && volumeControl ? "flex" : "none";
     }
@@ -610,6 +680,7 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
         },
         showTime(time, newDuration) {
             duration = Number.isFinite(newDuration) ? newDuration : 0;
+            lastTime = time;
             progress.set(duration ? time / duration : 0, {
                 enabled: duration > 0,
                 now: Math.floor(time),
@@ -617,9 +688,8 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
                 text: `${formatTime(time)} из ${formatTime(duration)}`,
             });
             if (!progress.dragging) {
-                currentTime.textContent = formatTime(time);
+                renderTimes(time);
             }
-            totalTime.textContent = formatTime(newDuration);
         },
         showVolume(level, muted) {
             const audible = muted ? 0 : level;
