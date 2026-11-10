@@ -82,6 +82,11 @@ export function glossyGlyph(kind, size) {
     ]);
 }
 
+/** Плоский значок цвета текста, высотой в букву — для надписей (бегущая строка). */
+export function flatGlyph(kind) {
+    return svg("svg", { viewBox: "0 0 24 24", width: "1em", height: "1em", "aria-hidden": "true" }, glyphPaths(kind, "currentColor"));
+}
+
 /** Цифра «1» внутри петли repeat — режим «повторять один трек», как в Spotify. */
 export function repeatOneMark() {
     return svg("text", {

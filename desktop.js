@@ -1,9 +1,9 @@
-// «Рабочий стол» сайта: фон на весь экран и папки поверх него. Папка открывает и закрывает своё окно —
+// «Рабочий стол» сайта: фон на весь экран, на нём живые часы и папки. Папка открывает и закрывает своё окно —
 // как папки-вкладки на monotonousreign.neocities.org. Сами окна строят другие модули (плеер — ui.js).
 // Цвет папки подстраивается под фон: на тёмном месте картинки она белая, на светлом — чёрная.
 
 import { glossyFolder } from "./gloss.js";
-import { FONT, LABEL_FADE_RIGHT, TEXT_HALO, addHoverGlow, addPressBounce, el } from "./ui.js";
+import { FONT, LABEL_FADE_RIGHT, POSTER_FONT, TEXT_HALO, addHoverGlow, addPressBounce, el } from "./ui.js";
 
 const BACKGROUND_IMAGE = "img/bg.jpg";
 // Заливка страницы под фоном и её яркость (0…255) — её видно, если фон не загрузился.
@@ -26,6 +26,11 @@ const TONES = {
         hoverGlow: "255, 255, 255",
     },
 };
+// Часы стоят там, где в правом нижнем куске фона была нарисована надпись «11:00 PM» (с картинки она стёрта).
+// Место — в пикселях самой картинки: правый край строки и линия, на которой стоят буквы; size — высота шрифта.
+const CLOCK = { right: 2496, baseline: 828, size: 40 };
+// От верха строки до линии букв, в долях высоты шрифта (у Helvetica и Arial при line-height: 1).
+const CLOCK_BASELINE = 0.85;
 // Где стоят папки, в долях экрана. По порядку: на белом пятне фотографии со спиной и на тёмной стене
 // красной картинки — по обе стороны от стыка. Фон тянется вместе с экраном, поэтому доли, а не пиксели.
 const FOLDER_CENTERS_X = [0.38, 0.64];
@@ -54,16 +59,23 @@ function readBrightness(image) {
 }
 
 /**
- * Средняя яркость картинки под прямоугольником экрана.
- * Картинка растянута как object-fit: cover — увеличена, пока не закроет экран, лишнее обрезано поровну с двух сторон;
- * повторяем тот же расчёт, чтобы узнать, какой её кусок оказался под прямоугольником.
+ * Как картинка легла на экран. Она растянута как object-fit: cover — увеличена, пока не закроет экран,
+ * лишнее обрезано поровну с двух сторон; повторяем тот же расчёт.
+ * scale — во сколько раз увеличена; left и top — где на экране её левый верхний угол (обычно за краем экрана).
  */
-function brightnessUnder(map, image, rect) {
+function coverFit(image) {
     const box = image.getBoundingClientRect();
     const scale = Math.max(box.width / image.naturalWidth, box.height / image.naturalHeight);
-    // левый верхний угол всей картинки на экране (обычно он за краем экрана)
-    const left = box.left + (box.width - image.naturalWidth * scale) / 2;
-    const top = box.top + (box.height - image.naturalHeight * scale) / 2;
+    return {
+        scale,
+        left: box.left + (box.width - image.naturalWidth * scale) / 2,
+        top: box.top + (box.height - image.naturalHeight * scale) / 2,
+    };
+}
+
+/** Средняя яркость картинки под прямоугольником экрана. */
+function brightnessUnder(map, image, rect) {
+    const { scale, left, top } = coverFit(image);
     // сколько пикселей экрана в одной клетке карты
     const cell = image.naturalWidth * scale / map.width;
     const clamp = (value, max) => Math.min(max, Math.max(0, value));
@@ -115,6 +127,39 @@ export function createDesktop(root) {
     }, { alt: "", src: BACKGROUND_IMAGE, "data-part": "background" });
     root.append(background);
 
+    // Часы — часть картинки: стоят в своём месте фона и растут вместе с ним. Пока фон не загрузился, их не видно.
+    const clock = el("div", {
+        position: "fixed",
+        visibility: "hidden",
+        whiteSpace: "nowrap",
+        font: `700 1em/1 ${POSTER_FONT}`,
+        color: "#fff",
+        textShadow: "0 0 8px rgba(255, 255, 255, 0.5)",
+        pointerEvents: "none",
+    }, { "data-part": "clock" });
+    root.append(clock);
+
+    function placeClock() {
+        const { scale, left, top } = coverFit(background);
+        const size = CLOCK.size * scale;
+        Object.assign(clock.style, {
+            fontSize: `${size}px`,
+            // правый край строки привязан к месту на картинке — задаём его отступом от правого края экрана
+            right: `${document.documentElement.clientWidth - (left + CLOCK.right * scale)}px`,
+            top: `${top + CLOCK.baseline * scale - size * CLOCK_BASELINE}px`,
+            visibility: "visible",
+        });
+    }
+
+    function tick() {
+        const now = new Date();
+        // как на кассете: «11:00 PM»
+        clock.textContent = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+        // следующее обновление — ровно на смене минуты
+        setTimeout(tick, 60_000 - (now.getSeconds() * 1000 + now.getMilliseconds()));
+    }
+    tick();
+
     const folders = [];
     // Яркость фона под прямоугольником экрана; пока фон грузится, она неизвестна.
     let brightnessAt = null;
@@ -132,6 +177,8 @@ export function createDesktop(root) {
         const map = readBrightness(background);
         brightnessAt = (rect) => brightnessUnder(map, background, rect);
         pickTones();
+        placeClock();
+        window.addEventListener("resize", placeClock);
     });
     background.addEventListener("error", () => {
         // картинки нет — под папками заливка страницы

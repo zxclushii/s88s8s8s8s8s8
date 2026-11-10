@@ -75,6 +75,7 @@ export function mountPlayer(root) {
                 saveVolume(level);
             }
         },
+        onSelect: select,
         onMute: () => {
             if (audio.muted) {
                 audio.muted = false;
@@ -108,7 +109,7 @@ function load(newPosition) {
     position = (newPosition + order.length) % order.length;
     const track = tracks[order[position]];
     audio.src = track.src;
-    ui.showTrack(track);
+    ui.showTrack(track, order[position]);
 }
 
 async function play() {
@@ -140,6 +141,12 @@ function step(delta) {
         return;
     }
     load(position + delta);
+    void play();
+}
+
+/** Клик по треку в списке: index — его номер в tracks. */
+function select(index) {
+    load(order.indexOf(index));
     void play();
 }
 
@@ -214,6 +221,7 @@ async function init() {
         ui.showStatus("Нет треков", `нет mp3 в ${TRACKS_DIR}`);
         return;
     }
+    ui.showTracks(tracks);
     // shuffle могли включить, пока грузился список
     order = shuffle ? shuffledOrder(0) : identityOrder();
     load(0);

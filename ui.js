@@ -1,19 +1,47 @@
 // Внешний вид плеера — всё строится и рисуется из JS.
-// Обложка — отдельная карточка, под ней независимый плеер (раскладка как у Spotify),
-// стеклянная панель и чёрный глянец — как на monotonousreign.neocities.org (7.css, Aero).
+// На большом экране плеер занимает его целиком: слева список треков, по центру обложка,
+// справа над ней бегущая строка, внизу во всю ширину панель с кнопками (раскладка как у Spotify).
+// На маленьком — обложка и панель под ней, столбиком по центру.
+// Стеклянная панель и чёрный глянец — как на monotonousreign.neocities.org (7.css, Aero).
 // Страницу вокруг (фон, папки) строит desktop.js; плеер — окно, которое открывает папка.
 
-import { glossyGlyph, glossyOrb, repeatOneMark } from "./gloss.js";
+import { flatGlyph, glossyGlyph, glossyOrb, repeatOneMark } from "./gloss.js";
 
 // Noto Sans Mono — латиница и кириллица, M PLUS 1 Code — японский; MS Gothic как у того сайта — запасной.
 export const FONT = '"Noto Sans Mono", "M PLUS 1 Code", "MS Gothic", monospace';
 // Белый текст на стекле читается на любой обложке благодаря тёмному ореолу.
 // (Жёсткая обводка 1px, как у подписей на monotonousreign, на мелком тонком шрифте выглядит полой.)
 export const TEXT_HALO = "0 0 3px rgba(0, 0, 0, 0.95), 0 1px 1px #000";
+// Шрифт надписи «ofc angels are real..» на фоне — гротеск вроде Helvetica; им набраны часы и бегущая строка.
+export const POSTER_FONT = 'Helvetica, Arial, "Liberation Sans", sans-serif';
 // Обложка квадратная, по центру над плеером; плеер шире неё.
 const COVER_MAX_SIZE = 480;
 const COVER_MIN_SIZE = 220;
 const TRAY_MAX_WIDTH = 720;
+// Экран не меньше этого — плеер разворачивается на весь экран; меньше — остаётся столбиком.
+const FULL_MIN_WIDTH = 1100;
+const FULL_MIN_HEIGHT = 600;
+// На весь экран обложка крупнее, а её центр чуть выше середины экрана: снизу место занимает панель.
+const FULL_COVER_MAX_SIZE = 560;
+const FULL_COVER_CENTER_Y = 0.46;
+// Список треков: левый край и верх — в долях экрана, ширина — доля экрана, но не шире предела.
+const TRACKLIST_LEFT = 0.05;
+const TRACKLIST_TOP = 0.21;
+const TRACKLIST_WIDTH = 0.22;
+const TRACKLIST_MAX_WIDTH = 560;
+// Столько строк видно разом на большом мониторе; остальные — прокруткой.
+const TRACKLIST_MAX_ROWS = 11;
+const TRACK_ROW_HEIGHT = 40;
+const TRACK_ROW_GAP = 8;
+// Запас внутри прокрутки: без него она обрезала бы ореол строк.
+const TRACKLIST_PADDING = 6;
+// Просвет между обложкой и тем, что стоит сбоку от неё.
+const SIDE_GAP = 40;
+// Бегущая строка: ширина — доля экрана, скорость — пикселей в секунду.
+const MARQUEE_WIDTH = 0.3;
+const MARQUEE_SPEED = 70;
+// Края бегущей строки тают на такой ширине (в высотах шрифта), чтобы буквы не обрубались.
+const MARQUEE_FADE = "0.7em";
 // Уже этого плеер перестраивается в столбик (телефоны): три колонки —
 // название 130px, кнопки с полосой 300px, громкость 130px — плюс зазоры и отступы панели.
 const WIDE_TRAY_MIN_WIDTH = 630;
@@ -363,6 +391,196 @@ function createSlider({ label, part, knobSize, keyStep, onDrag, onCommit }) {
 export const LABEL_FADE_RIGHT = "linear-gradient(to right, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0))";
 const LABEL_FADE_BOTH = "linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.85) 22%, rgba(0, 0, 0, 0.85) 78%, rgba(0, 0, 0, 0))";
 
+// Строка списка треков — в стиле папок: чёрный глянец со ступенькой посередине, светлый кант, белый ореол.
+// Играющий трек — как белая папка.
+const TRACK_ROW_LOOK = {
+    idle: {
+        background: "linear-gradient(#5a5a5a, #1c1c1c 48%, #020202 54%, #2a2a2a)",
+        boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 1px 1px rgba(255, 255, 255, 0.75), 0 0 6px rgba(255, 255, 255, 0.35)",
+        color: "#fff",
+        textShadow: TEXT_HALO,
+    },
+    playing: {
+        background: "linear-gradient(#ffffff, #e8e8e8 48%, #bdbdbd 54%, #ececec)",
+        boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.95), 0 0 1px 1px rgba(0, 0, 0, 0.9), 0 0 7px rgba(255, 255, 255, 0.7)",
+        color: "#000",
+        textShadow: "none",
+    },
+};
+
+/** Список треков с прокруткой: заголовок и строки-кнопки; onSelect(номер трека) — по клику. */
+function createTrackList(onSelect) {
+    // заголовок — как подпись на папке
+    const heading = el("div", {
+        display: "inline-block",
+        marginLeft: `${TRACKLIST_PADDING}px`,
+        padding: "3px 44px 3px 8px",
+        font: `700 18px/1.25 ${FONT}`,
+        color: "#fff",
+        textShadow: TEXT_HALO,
+        background: LABEL_FADE_RIGHT,
+    }, {}, ["tracklist"]);
+    const list = el("div", {
+        display: "flex",
+        flexDirection: "column",
+        gap: `${TRACK_ROW_GAP}px`,
+        marginTop: "4px",
+        boxSizing: "border-box",
+        padding: `${TRACKLIST_PADDING}px`,
+        overflowY: "auto",
+        // колесо мыши на краю списка не должно утаскивать страницу
+        overscrollBehavior: "contain",
+        // полоса прокрутки — тонкая, серебристая на тёмном, как полоса перемотки
+        scrollbarWidth: "thin",
+        scrollbarColor: "#e2e2e2 rgba(0, 0, 0, 0.55)",
+    }, { "aria-label": "Треки" });
+    const root = el("div", {}, { "data-part": "tracklist" }, [heading, list]);
+
+    let rows = [];
+    let active = -1;
+
+    function paint(row, playing) {
+        Object.assign(row.button.style, playing ? TRACK_ROW_LOOK.playing : TRACK_ROW_LOOK.idle);
+        row.artist.style.opacity = playing ? "0.7" : "0.8";
+        if (playing) {
+            row.button.setAttribute("aria-current", "true");
+        } else {
+            row.button.removeAttribute("aria-current");
+        }
+    }
+
+    return {
+        root,
+        /** Высота под столько строк; остальное уйдёт в прокрутку. */
+        setVisibleRows(count) {
+            list.style.maxHeight = `${count * TRACK_ROW_HEIGHT + (count - 1) * TRACK_ROW_GAP + TRACKLIST_PADDING * 2}px`;
+        },
+        /** Сколько места по высоте занимает всё, кроме строк. */
+        get chromeHeight() {
+            return list.offsetTop + TRACKLIST_PADDING * 2;
+        },
+        setTracks(tracks) {
+            rows = tracks.map((track, index) => {
+                const title = el("span", {
+                    flex: "1",
+                    minWidth: "0",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    fontWeight: "700",
+                }, {}, [track.title]);
+                const artist = el("span", {
+                    flex: "0 1 auto",
+                    maxWidth: "45%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    fontSize: "12px",
+                }, {}, [track.artist]);
+                const button = el("button", {
+                    flex: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    height: `${TRACK_ROW_HEIGHT}px`,
+                    boxSizing: "border-box",
+                    padding: "0 12px",
+                    border: "1px solid #000",
+                    borderRadius: "6px",
+                    font: `14px ${FONT}`,
+                    textAlign: "left",
+                    whiteSpace: "nowrap",
+                    cursor: "pointer",
+                    WebkitTapHighlightColor: "transparent",
+                }, { type: "button", title: track.artist ? `${track.title} — ${track.artist}` : track.title, "data-part": "track" }, [title, artist]);
+                // список лежит и на тёмном, и на светлом — белое свечение видно на тёмном, ореол строки — на светлом
+                addHoverGlow(button, () => "255, 255, 255");
+                button.addEventListener("click", () => onSelect(index));
+                const row = { button, artist };
+                paint(row, index === active);
+                return row;
+            });
+            list.replaceChildren(...rows.map((row) => row.button));
+        },
+        setActive(index) {
+            if (rows[active]) {
+                paint(rows[active], false);
+            }
+            active = index;
+            if (rows[active]) {
+                paint(rows[active], true);
+                // играющий трек всегда на виду; у скрытого списка это ничего не делает
+                rows[active].button.scrollIntoView({ block: "nearest" });
+            }
+        },
+    };
+}
+
+/**
+ * Бегущая строка «PLAY ► название — артист», как надпись видеомагнитофона на фоне.
+ * Музыка играет — строка бежит; на паузе стоит на месте и показывает «PAUSE».
+ */
+function createMarquee() {
+    // отступ слева — чтобы стоящая на паузе строка начиналась уже за тающим краем
+    const strip = el("div", { display: "flex", width: "max-content", paddingLeft: MARQUEE_FADE, willChange: "transform" });
+    const fade = `linear-gradient(to right, transparent, #000 ${MARQUEE_FADE}, #000 calc(100% - ${MARQUEE_FADE}), transparent)`;
+    const root = el("div", {
+        overflow: "hidden",
+        whiteSpace: "nowrap",
+        font: `700 1em/1.25 ${POSTER_FONT}`,
+        color: "#fff",
+        textShadow: "0 0 10px rgba(255, 255, 255, 0.55), 0 1px 3px rgba(0, 0, 0, 0.9)",
+        maskImage: fade,
+        WebkitMaskImage: fade,
+        pointerEvents: "none",
+    }, { "data-part": "marquee", "aria-hidden": "true" }, [strip]);
+
+    let text = "";
+    let playing = false;
+    let run = null;
+
+    function segment() {
+        const icon = flatGlyph(playing ? "play" : "pause");
+        Object.assign(icon.style, { flex: "none", margin: "0 0.35em 0 0.1em", filter: "drop-shadow(0 0 5px rgba(255, 255, 255, 0.55))" });
+        return el("span", {
+            display: "inline-flex",
+            alignItems: "center",
+            paddingRight: "1.6em",
+        }, {}, [playing ? "PLAY" : "PAUSE", icon, text]);
+    }
+
+    /** Собирает строку заново и пускает её с начала; у скрытой строки нечего мерить — тогда ждём показа. */
+    function render() {
+        run?.cancel();
+        run = null;
+        const first = segment();
+        strip.replaceChildren(first);
+        const length = first.offsetWidth;
+        if (length === 0 || !playing) {
+            return;
+        }
+        // столько копий, чтобы строка закрывала окно и в самом конце сдвига
+        for (let filled = length; filled < root.clientWidth + length; filled += length) {
+            strip.append(segment());
+        }
+        run = strip.animate(
+            [{ transform: "translateX(0)" }, { transform: `translateX(${-length}px)` }],
+            { duration: length / MARQUEE_SPEED * 1000, iterations: Infinity },
+        );
+    }
+
+    return {
+        root,
+        render,
+        setText(next) {
+            text = next;
+            render();
+        },
+        setPlaying(next) {
+            playing = next;
+            render();
+        },
+    };
+}
+
 // Две раскладки панели.
 // Компьютер — как Spotify: название слева, кнопки и широкая полоса по центру, громкость справа.
 // Телефон — как плеер на айфоне: название по центру, под ним полоса трека, ниже крупные кнопки; углы круглее.
@@ -413,6 +631,10 @@ function setBox(node, size) {
     node.style.height = `${size}px`;
 }
 
+function between(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+}
+
 function setIconSize(svgNode, size) {
     svgNode.setAttribute("width", String(size));
     svgNode.setAttribute("height", String(size));
@@ -422,7 +644,7 @@ function setIconSize(svgNode, size) {
  * Строит плеер внутри root — закрытым: его открывает setOpen(true).
  * Плеер занимает место внутри отступов root (сверху там оставлено место под папки).
  * handlers: onPlayPause, onPrevious, onNext, onShuffle, onRepeat, onSeek(seconds),
- * onVolume(level 0…1, final — ползунок отпустили), onMute.
+ * onVolume(level 0…1, final — ползунок отпустили), onMute, onSelect(номер трека в списке).
  * volumeControl: false — регулятор громкости не показываем (на iPhone громкость меняют только кнопками).
  * Возвращает setOpen и методы show*, которыми логика плеера обновляет экран.
  */
@@ -445,6 +667,7 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
         border: "1px solid rgba(0, 0, 0, 0.71)",
         background: "#000",
         boxShadow: "0 0 10px 5px rgba(0, 0, 0, 0.5)",
+        pointerEvents: "auto",
     }, { "data-part": "cover-card" }, [cover]);
 
     // размеры шрифта, отступы и подложка зависят от раскладки — см. LAYOUTS
@@ -559,16 +782,21 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
         WebkitBackdropFilter: "blur(8px)",
         border: "1px solid rgba(0, 0, 0, 0.71)",
         boxShadow: "0 0 10px 5px rgba(0, 0, 0, 0.5), inset 0 -10px 10px rgba(255, 255, 255, 0.5), inset 0 2px 12px rgba(255, 255, 255, 0.5)",
+        pointerEvents: "auto",
     }, { "data-part": "tray" }, [info, controls, progressRow, volumeRow]);
 
-    // два независимых блока: обложка сверху, плеер под ней
+    const trackList = createTrackList((index) => handlers.onSelect(index));
+    trackList.root.style.pointerEvents = "auto";
+    const marquee = createMarquee();
+
+    // Всё окно плеера. Столбиком — обложка и панель под ней; на весь экран — слой, где каждая часть стоит на своём месте.
     const column = el("div", {
         display: "none",
         opacity: "0",
         flexDirection: "column",
         alignItems: "center",
         gap: `${BLOCK_GAP}px`,
-    }, { "data-part": "player" }, [coverCard, tray]);
+    }, { "data-part": "player" }, [trackList.root, coverCard, marquee.root, tray]);
 
     root.append(column);
     let open = false;
@@ -608,20 +836,94 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
         if (!open) {
             return;
         }
-        const pad = getComputedStyle(root);
-        const top = parseFloat(pad.paddingTop);
-        const trayWidth = Math.min(TRAY_MAX_WIDTH, window.innerWidth - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight));
+        // root оставляет отступы: по бокам и снизу — поля страницы, сверху — ещё и место под папки
+        const style = getComputedStyle(root);
+        const pad = {
+            top: parseFloat(style.paddingTop),
+            right: parseFloat(style.paddingRight),
+            bottom: parseFloat(style.paddingBottom),
+            left: parseFloat(style.paddingLeft),
+        };
+        if (window.innerWidth >= FULL_MIN_WIDTH && window.innerHeight >= FULL_MIN_HEIGHT) {
+            layoutFull(pad);
+        } else {
+            layoutColumn(pad);
+        }
+    }
+
+    /** Маленький экран: обложка и панель под ней, столбиком по центру. Списка и бегущей строки нет. */
+    function layoutColumn(pad) {
+        Object.assign(column.style, { position: "static", inset: "auto", display: "flex", pointerEvents: "auto" });
+        trackList.root.style.display = "none";
+        marquee.root.style.display = "none";
+        Object.assign(coverCard.style, { position: "relative", left: "auto", top: "auto" });
+        Object.assign(tray.style, { position: "relative", left: "auto", bottom: "auto" });
+
+        const trayWidth = Math.min(TRAY_MAX_WIDTH, window.innerWidth - pad.left - pad.right);
         setTrayLayout(trayWidth >= WIDE_TRAY_MIN_WIDTH);
         tray.style.width = `${trayWidth}px`;
         // обложка — сколько влезает над плеером по высоте экрана, но не шире плеера
-        const freeHeight = window.innerHeight - top - parseFloat(pad.paddingBottom) - BLOCK_GAP - tray.offsetHeight;
+        const freeHeight = window.innerHeight - pad.top - pad.bottom - BLOCK_GAP - tray.offsetHeight;
         // совсем маленький экран — пусть лучше прокручивается, чем обложка станет с марку
         const coverSize = Math.max(COVER_MIN_SIZE, Math.floor(Math.min(COVER_MAX_SIZE, trayWidth, freeHeight)));
-        coverCard.style.width = `${coverSize}px`;
-        coverCard.style.height = `${coverSize}px`;
+        setBox(coverCard, coverSize);
         // плеер стоит по центру экрана; если так он залез бы на папки — начинается сразу под ними
         const height = coverSize + BLOCK_GAP + tray.offsetHeight;
-        column.style.marginTop = `${Math.max(0, (window.innerHeight - height) / 2 - top)}px`;
+        column.style.marginTop = `${Math.max(0, (window.innerHeight - height) / 2 - pad.top)}px`;
+    }
+
+    /** Большой экран: плеер на весь экран — части стоят поверх фона каждая на своём месте, между ними виден фон. */
+    function layoutFull(pad) {
+        const { innerWidth: width, innerHeight: height } = window;
+        // сам слой мышь не ловит: сквозь пустые места можно нажимать на папки
+        Object.assign(column.style, { position: "fixed", inset: "0", display: "block", pointerEvents: "none", marginTop: "0" });
+
+        // панель с кнопками — внизу во всю ширину; её середина не шире обычной панели,
+        // иначе полоса перемотки растянулась бы на весь экран
+        setTrayLayout(true);
+        Object.assign(tray.style, {
+            position: "absolute",
+            left: `${pad.left}px`,
+            bottom: `${pad.bottom}px`,
+            width: `${width - pad.left - pad.right}px`,
+            gridTemplateColumns: `minmax(0, 1fr) minmax(300px, ${TRAY_MAX_WIDTH}px) minmax(0, 1fr)`,
+        });
+        const barTop = height - pad.bottom - tray.offsetHeight;
+
+        // обложка — по центру, между папками и панелью
+        const coverSize = Math.max(COVER_MIN_SIZE, Math.floor(Math.min(FULL_COVER_MAX_SIZE, barTop - pad.top - BLOCK_GAP * 2)));
+        const coverLeft = (width - coverSize) / 2;
+        const coverTop = between(height * FULL_COVER_CENTER_Y - coverSize / 2, pad.top, barTop - BLOCK_GAP - coverSize);
+        setBox(coverCard, coverSize);
+        Object.assign(coverCard.style, { position: "absolute", left: `${coverLeft}px`, top: `${coverTop}px` });
+
+        // список треков — слева, начинается выше обложки; строк — сколько влезает до панели, но не больше предела
+        const listLeft = Math.max(pad.left, width * TRACKLIST_LEFT);
+        const listTop = height * TRACKLIST_TOP;
+        Object.assign(trackList.root.style, {
+            display: "block",
+            position: "absolute",
+            left: `${listLeft}px`,
+            top: `${listTop}px`,
+            width: `${Math.min(TRACKLIST_MAX_WIDTH, width * TRACKLIST_WIDTH, coverLeft - SIDE_GAP - listLeft)}px`,
+        });
+        const room = barTop - BLOCK_GAP - listTop - trackList.chromeHeight;
+        const rows = Math.floor((room + TRACK_ROW_GAP) / (TRACK_ROW_HEIGHT + TRACK_ROW_GAP));
+        trackList.setVisibleRows(between(rows, 1, TRACKLIST_MAX_ROWS));
+
+        // бегущая строка — правее обложки, серединой на её верхнем крае, но не выше полосы папок
+        const marqueeLeft = coverLeft + coverSize + SIDE_GAP;
+        const fontSize = between(width * 0.022, 24, 56);
+        Object.assign(marquee.root.style, {
+            display: "block",
+            position: "absolute",
+            left: `${marqueeLeft}px`,
+            top: `${Math.max(pad.top, coverTop - fontSize * 0.625)}px`,
+            width: `${Math.min(width * MARQUEE_WIDTH, width - pad.right - marqueeLeft)}px`,
+            fontSize: `${fontSize}px`,
+        });
+        // ширина окна строки могла измениться — пересобираем
+        marquee.render();
     }
     window.addEventListener("resize", layout);
 
@@ -681,10 +983,17 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
     const ui = {
         /** Показать или спрятать окно плеера; музыка при закрытом окне продолжает играть. */
         setOpen,
-        showTrack(track) {
+        /** Заполняет список треков; порядок строк — номера, которые потом приходят в onSelect и showTrack. */
+        showTracks(tracks) {
+            trackList.setTracks(tracks);
+        },
+        /** track — что играет, index — его номер в списке. */
+        showTrack(track, index) {
             setText(title, track.title);
             setText(artist, track.artist);
             setCover(track.cover);
+            trackList.setActive(index);
+            marquee.setText(track.artist ? `${track.title} — ${track.artist}` : track.title);
             ui.showTime(0, NaN);
         },
         showStatus(headline, detail) {
@@ -697,6 +1006,7 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
         showPlaying(isPlaying) {
             orb.setPlaying(isPlaying);
             play.setAttribute("aria-label", isPlaying ? "Пауза" : "Играть");
+            marquee.setPlaying(isPlaying);
         },
         showTime(time, newDuration) {
             duration = Number.isFinite(newDuration) ? newDuration : 0;
