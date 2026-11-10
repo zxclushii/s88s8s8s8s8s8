@@ -1,16 +1,15 @@
 // Внешний вид плеера — всё строится и рисуется из JS.
 // Обложка — отдельная карточка, под ней независимый плеер (раскладка как у Spotify),
 // стеклянная панель и чёрный глянец — как на monotonousreign.neocities.org (7.css, Aero).
+// Страницу вокруг (фон, папки) строит desktop.js; плеер — окно, которое открывает папка.
 
 import { glossyGlyph, glossyOrb, repeatOneMark } from "./gloss.js";
 
 // Noto Sans Mono — латиница и кириллица, M PLUS 1 Code — японский; MS Gothic как у того сайта — запасной.
-const FONT = '"Noto Sans Mono", "M PLUS 1 Code", "MS Gothic", monospace';
+export const FONT = '"Noto Sans Mono", "M PLUS 1 Code", "MS Gothic", monospace';
 // Белый текст на стекле читается на любой обложке благодаря тёмному ореолу.
 // (Жёсткая обводка 1px, как у подписей на monotonousreign, на мелком тонком шрифте выглядит полой.)
-const TEXT_HALO = "0 0 3px rgba(0, 0, 0, 0.95), 0 1px 1px #000";
-// Фон страницы — пока просто картинка (сайта ещё нет, цвета не выбраны).
-const BACKGROUND_IMAGE = "img/bg.jpg";
+export const TEXT_HALO = "0 0 3px rgba(0, 0, 0, 0.95), 0 1px 1px #000";
 // Обложка квадратная, по центру над плеером; плеер шире неё.
 const COVER_MAX_SIZE = 480;
 const COVER_MIN_SIZE = 220;
@@ -20,13 +19,14 @@ const TRAY_MAX_WIDTH = 720;
 const WIDE_TRAY_MIN_WIDTH = 630;
 // Расстояние между обложкой и плеером.
 const BLOCK_GAP = 14;
-const PAGE_GUTTER = 16;
 const SEEK_STEP_SECONDS = 5;
 const VOLUME_STEP = 0.05;
+// Окно плеера проявляется и тает, как .tab-content на monotonousreign.
+const WINDOW_FADE_MS = 400;
 
 const REPEAT_LABELS = { off: "Повтор: выключен", all: "Повтор: весь плейлист", one: "Повтор: один трек" };
 
-function el(tag, style = {}, attrs = {}, children = []) {
+export function el(tag, style = {}, attrs = {}, children = []) {
     const node = document.createElement(tag);
     Object.assign(node.style, style);
     for (const [name, value] of Object.entries(attrs)) {
@@ -129,7 +129,7 @@ function drawPlaceholderCover() {
 }
 
 /** Чёрное свечение при наведении — как .tab:hover на monotonousreign. */
-function addHoverGlow(node) {
+export function addHoverGlow(node) {
     let glow = null;
     node.addEventListener("pointerenter", (event) => {
         // на тачскрине «наведения» нет — свечение залипло бы после тапа
@@ -146,7 +146,7 @@ function addHoverGlow(node) {
 }
 
 /** Короткое «вдавливание» при нажатии. */
-function addPressBounce(node) {
+export function addPressBounce(node) {
     node.addEventListener("pointerdown", () => {
         node.animate(
             [{ transform: "scale(1)" }, { transform: "scale(0.86)" }, { transform: "scale(1)" }],
@@ -356,7 +356,7 @@ function createSlider({ label, part, knobSize, keyStep, onDrag, onCommit }) {
 
 // Чёрная подложка под названием, как у подписей папок на monotonousreign: тает вправо
 // (название слева) или в обе стороны (название по центру).
-const LABEL_FADE_RIGHT = "linear-gradient(to right, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0))";
+export const LABEL_FADE_RIGHT = "linear-gradient(to right, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0))";
 const LABEL_FADE_BOTH = "linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.85) 22%, rgba(0, 0, 0, 0.85) 78%, rgba(0, 0, 0, 0))";
 
 // Две раскладки панели.
@@ -415,35 +415,15 @@ function setIconSize(svgNode, size) {
 }
 
 /**
- * Строит плеер внутри root.
+ * Строит плеер внутри root — закрытым: его открывает setOpen(true).
+ * Плеер занимает место внутри отступов root (сверху там оставлено место под папки).
  * handlers: onPlayPause, onPrevious, onNext, onShuffle, onRepeat, onSeek(seconds),
  * onVolume(level 0…1, final — ползунок отпустили), onMute.
  * volumeControl: false — регулятор громкости не показываем (на iPhone громкость меняют только кнопками).
- * Возвращает методы show*, которыми логика плеера обновляет экран.
+ * Возвращает setOpen и методы show*, которыми логика плеера обновляет экран.
  */
 export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
     const placeholder = drawPlaceholderCover();
-
-    document.documentElement.style.height = "100%";
-    Object.assign(root.style, {
-        margin: "0",
-        minHeight: "100%",
-        boxSizing: "border-box",
-        padding: `${PAGE_GUTTER}px`,
-        display: "grid",
-        placeItems: "center",
-        background: "#0d0d0d",
-        fontFamily: FONT,
-    });
-
-    const background = el("img", {
-        position: "fixed",
-        inset: "0",
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-        zIndex: "-1",
-    }, { alt: "", src: BACKGROUND_IMAGE, "data-part": "background" });
 
     // обложка — отдельная квадратная карточка над плеером, ничем не перекрыта
     const cover = el("img", {
@@ -579,13 +559,15 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
 
     // два независимых блока: обложка сверху, плеер под ней
     const column = el("div", {
-        display: "flex",
+        display: "none",
+        opacity: "0",
         flexDirection: "column",
         alignItems: "center",
         gap: `${BLOCK_GAP}px`,
     }, { "data-part": "player" }, [coverCard, tray]);
 
-    root.append(background, column);
+    root.append(column);
+    let open = false;
 
     function setTrayLayout(wide) {
         const look = wide ? LAYOUTS.wide : LAYOUTS.narrow;
@@ -618,18 +600,50 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
     }
 
     function layout() {
-        const trayWidth = Math.min(TRAY_MAX_WIDTH, window.innerWidth - PAGE_GUTTER * 2);
+        // скрытый плеер не измерить (высота панели — ноль); пересчитаем, когда откроют
+        if (!open) {
+            return;
+        }
+        const pad = getComputedStyle(root);
+        const top = parseFloat(pad.paddingTop);
+        const trayWidth = Math.min(TRAY_MAX_WIDTH, window.innerWidth - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight));
         setTrayLayout(trayWidth >= WIDE_TRAY_MIN_WIDTH);
         tray.style.width = `${trayWidth}px`;
         // обложка — сколько влезает над плеером по высоте экрана, но не шире плеера
-        const freeHeight = window.innerHeight - PAGE_GUTTER * 2 - BLOCK_GAP - tray.offsetHeight;
+        const freeHeight = window.innerHeight - top - parseFloat(pad.paddingBottom) - BLOCK_GAP - tray.offsetHeight;
         // совсем маленький экран — пусть лучше прокручивается, чем обложка станет с марку
         const coverSize = Math.max(COVER_MIN_SIZE, Math.floor(Math.min(COVER_MAX_SIZE, trayWidth, freeHeight)));
         coverCard.style.width = `${coverSize}px`;
         coverCard.style.height = `${coverSize}px`;
+        // плеер стоит по центру экрана; если так он залез бы на папки — начинается сразу под ними
+        const height = coverSize + BLOCK_GAP + tray.offsetHeight;
+        column.style.marginTop = `${Math.max(0, (window.innerHeight - height) / 2 - top)}px`;
     }
     window.addEventListener("resize", layout);
-    layout();
+
+    function setOpen(nowOpen) {
+        if (nowOpen === open) {
+            return;
+        }
+        open = nowOpen;
+        // клик посреди анимации: продолжаем с той прозрачности, на которой её застали
+        const from = getComputedStyle(column).opacity;
+        column.getAnimations().forEach((animation) => animation.cancel());
+        column.style.opacity = open ? "1" : "0";
+        if (open) {
+            column.style.display = "flex";
+            layout();
+        }
+        column.animate([{ opacity: from }, { opacity: column.style.opacity }], { duration: WINDOW_FADE_MS, easing: "ease-in-out" })
+            .finished.then(() => {
+                // убираем из потока, иначе на маленьком экране страница прокручивалась бы над пустым местом
+                if (!open) {
+                    column.style.display = "none";
+                }
+            }, () => {
+                // анимацию отменил следующий клик — он и доведёт дело до конца
+            });
+    }
 
     function setText(node, text) {
         node.textContent = text;
@@ -661,6 +675,8 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
     muteButton.addEventListener("click", () => handlers.onMute());
 
     const ui = {
+        /** Показать или спрятать окно плеера; музыка при закрытом окне продолжает играть. */
+        setOpen,
         showTrack(track) {
             setText(title, track.title);
             setText(artist, track.artist);

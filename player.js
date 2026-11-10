@@ -1,4 +1,5 @@
 // Логика плеера: плейлист из GitHub, аудио, shuffle и repeat. Внешний вид — в ui.js.
+// Плеер — одно из окон сайта: его ставит на страницу site.js через mountPlayer.
 
 import { API_URL, PlayerError, TRACKS_DIR, loadPlaylist } from "./tracks.js";
 import { createPlayerUI } from "./ui.js";
@@ -49,37 +50,45 @@ let position = 0;
 let shuffle = false;
 let repeat = "off";
 
-const ui = createPlayerUI(document.body, {
-    onPlayPause: togglePlay,
-    onPrevious: previous,
-    onNext: () => step(1),
-    onShuffle: toggleShuffle,
-    onRepeat: cycleRepeat,
-    onSeek: (seconds) => {
-        if (tracks.length > 0) {
-            audio.currentTime = seconds;
-        }
-    },
-    onVolume: (level, final) => {
-        audio.muted = false;
-        audio.volume = level;
-        // Запоминаем только отпущенное значение и не ноль: иначе, утянув ползунок в ноль,
-        // запомнили бы промежуточные 3–4%, и «включить звук» вернул бы почти тишину.
-        if (final && level > 0) {
-            saveVolume(level);
-        }
-    },
-    onMute: () => {
-        if (audio.muted) {
+// Экран плеера; появляется в mountPlayer.
+let ui;
+
+/** Строит плеер внутри root и начинает грузить плейлист. Возвращает окно: setOpen(true|false). */
+export function mountPlayer(root) {
+    ui = createPlayerUI(root, {
+        onPlayPause: togglePlay,
+        onPrevious: previous,
+        onNext: () => step(1),
+        onShuffle: toggleShuffle,
+        onRepeat: cycleRepeat,
+        onSeek: (seconds) => {
+            if (tracks.length > 0) {
+                audio.currentTime = seconds;
+            }
+        },
+        onVolume: (level, final) => {
             audio.muted = false;
-        } else if (audio.volume === 0) {
-            audio.volume = loadVolume();
-        } else {
-            audio.muted = true;
-        }
-    },
-}, { volumeControl });
-ui.showVolume(audio.volume, audio.muted);
+            audio.volume = level;
+            // Запоминаем только отпущенное значение и не ноль: иначе, утянув ползунок в ноль,
+            // запомнили бы промежуточные 3–4%, и «включить звук» вернул бы почти тишину.
+            if (final && level > 0) {
+                saveVolume(level);
+            }
+        },
+        onMute: () => {
+            if (audio.muted) {
+                audio.muted = false;
+            } else if (audio.volume === 0) {
+                audio.volume = loadVolume();
+            } else {
+                audio.muted = true;
+            }
+        },
+    }, { volumeControl });
+    ui.showVolume(audio.volume, audio.muted);
+    void init();
+    return { setOpen: ui.setOpen };
+}
 
 function identityOrder() {
     return tracks.map((_, index) => index);
@@ -209,5 +218,3 @@ async function init() {
     order = shuffle ? shuffledOrder(0) : identityOrder();
     load(0);
 }
-
-void init();
