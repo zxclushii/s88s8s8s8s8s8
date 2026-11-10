@@ -29,11 +29,11 @@ const COVER_CENTER_Y = 0.46;
 // Список треков: левый край и верх — в долях экрана, ширина — доля экрана, но не шире предела.
 const TRACKLIST_LEFT = 0.05;
 const TRACKLIST_TOP = 0.21;
-const TRACKLIST_WIDTH = 0.22;
-const TRACKLIST_MAX_WIDTH = 560;
+const TRACKLIST_WIDTH = 0.25;
+const TRACKLIST_MAX_WIDTH = 640;
 // Столько строк видно разом на большом мониторе; остальные — прокруткой.
 const TRACKLIST_MAX_ROWS = 11;
-const TRACK_ROW_HEIGHT = 40;
+const TRACK_ROW_HEIGHT = 56;
 const TRACK_ROW_GAP = 8;
 // Запас внутри прокрутки: без него она обрезала бы ореол строк.
 const TRACKLIST_PADDING = 6;
@@ -403,32 +403,32 @@ const GLASS = {
 };
 const NO_GLASS = { background: "none", backdropFilter: "none", WebkitBackdropFilter: "none", border: "0", boxShadow: "none" };
 
-// Два вида списка треков.
-// bars — большой экран: отдельные полоски в стиле папок (чёрный глянец со ступенькой посередине, светлый кант,
-// белый ореол), играющий трек — как белая папка; название слева, артист справа.
-// card — телефон: одна стеклянная карточка, как панель плеера; в строке слева обложка, справа название и под ним артист.
+// Два вида списка треков. В строке слева обложка, дальше название и артист.
+// bars — большой экран: отдельные полоски, каждая — как белая папка с подписью: серебристый глянец со ступенькой
+// посередине, название белым на чёрной подложке, тающей вправо; артист — справа. Играющий трек — как чёрная папка.
+// card — телефон: одна стеклянная карточка, как панель плеера; название на той же подложке, под ним артист.
 const TRACK_LOOKS = {
     bars: {
         root: { display: "block", borderRadius: "0", overflow: "visible", ...NO_GLASS },
         heading: { display: "inline-block" },
         list: { flex: "none", gap: `${TRACK_ROW_GAP}px`, marginTop: "4px", padding: `${TRACKLIST_PADDING}px` },
-        row: { height: `${TRACK_ROW_HEIGHT}px`, padding: "0 12px", borderRadius: "6px", border: "1px solid #000" },
+        row: { height: `${TRACK_ROW_HEIGHT}px`, padding: "0 14px 0 6px", borderRadius: "8px", border: "1px solid #000" },
         idle: {
-            background: "linear-gradient(#5a5a5a, #1c1c1c 48%, #020202 54%, #2a2a2a)",
-            boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 1px 1px rgba(255, 255, 255, 0.75), 0 0 6px rgba(255, 255, 255, 0.35)",
-            color: "#fff",
-            textShadow: TEXT_HALO,
-        },
-        playing: {
             background: "linear-gradient(#ffffff, #e8e8e8 48%, #bdbdbd 54%, #ececec)",
             boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.95), 0 0 1px 1px rgba(0, 0, 0, 0.9), 0 0 7px rgba(255, 255, 255, 0.7)",
-            color: "#000",
+            color: "#111",
             textShadow: "none",
         },
-        thumb: { display: "none" },
+        playing: {
+            background: "linear-gradient(#5a5a5a, #1c1c1c 48%, #020202 54%, #2a2a2a)",
+            boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 1px 1px rgba(255, 255, 255, 0.75), 0 0 6px rgba(255, 255, 255, 0.35)",
+            color: "#f2f2f2",
+            textShadow: TEXT_HALO,
+        },
         text: { flexDirection: "row", alignItems: "center", gap: "12px" },
-        title: { flex: "1", fontSize: "14px", padding: "0", background: "none" },
-        artist: { maxWidth: "45%", fontSize: "12px", padding: "0" },
+        // подложка тянется от обложки почти до артиста и тает по дороге
+        title: { flex: "1", fontSize: "17px", padding: "5px 40px 5px 9px", background: LABEL_FADE_RIGHT },
+        artist: { maxWidth: "45%", fontSize: "14px", padding: "0" },
     },
     card: {
         root: { display: "flex", borderRadius: "22px", overflow: "hidden", ...GLASS },
@@ -443,9 +443,7 @@ const TRACK_LOOKS = {
             color: "#fff",
             textShadow: TEXT_HALO,
         },
-        thumb: { display: "block" },
         text: { flexDirection: "column", alignItems: "flex-start", gap: "3px" },
-        // название на чёрной подложке — как в панели плеера
         title: { flex: "none", fontSize: "15px", padding: "2px 16px 2px 6px", background: LABEL_FADE_RIGHT },
         artist: { maxWidth: "100%", fontSize: "12px", padding: "0 6px" },
     },
@@ -459,8 +457,8 @@ function createTrackList(onSelect, placeholder) {
     // заголовок — как подпись на папке
     const heading = el("div", {
         marginLeft: `${TRACKLIST_PADDING}px`,
-        padding: "3px 44px 3px 8px",
-        font: `700 18px/1.25 ${FONT}`,
+        padding: "4px 56px 4px 10px",
+        font: `700 22px/1.25 ${FONT}`,
         color: "#fff",
         textShadow: TEXT_HALO,
         background: LABEL_FADE_RIGHT,
@@ -502,7 +500,6 @@ function createTrackList(onSelect, placeholder) {
 
     function paint(row, playing) {
         Object.assign(row.button.style, look.row, playing ? look.playing : look.idle);
-        Object.assign(row.thumb.style, look.thumb);
         Object.assign(row.text.style, look.text);
         Object.assign(row.title.style, look.title);
         Object.assign(row.artist.style, look.artist);
@@ -558,13 +555,14 @@ function createTrackList(onSelect, placeholder) {
                     border: "1px solid rgba(0, 0, 0, 0.71)",
                     objectFit: "cover",
                     background: "#000",
-                    // обложки спрятанных строк (полоски на большом экране) браузер не качает
+                    // обложки строк, до которых ещё не докрутили, браузер не качает
                 }, { alt: "", loading: "lazy", src: track.cover ?? placeholder });
                 thumb.addEventListener("error", () => {
                     if (thumb.src !== placeholder) {
                         thumb.src = placeholder;
                     }
                 });
+                // название всегда белое: оно стоит на чёрной подложке
                 const title = el("span", {
                     maxWidth: "100%",
                     boxSizing: "border-box",
@@ -572,6 +570,8 @@ function createTrackList(onSelect, placeholder) {
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     fontWeight: "700",
+                    color: "#fff",
+                    textShadow: TEXT_HALO,
                 }, {}, [track.title]);
                 const artist = el("span", {
                     flex: "0 1 auto",
@@ -593,7 +593,7 @@ function createTrackList(onSelect, placeholder) {
                     cursor: "pointer",
                     WebkitTapHighlightColor: "transparent",
                 }, { type: "button", title: track.artist ? `${track.title} — ${track.artist}` : track.title, "data-part": "track" }, [thumb, text]);
-                // список лежит и на тёмном, и на светлом — белое свечение видно на тёмном, ореол строки — на светлом
+                // список лежит и на тёмном, и на светлом — белое свечение видно на тёмном, чёрный кант строки — на светлом
                 addHoverGlow(button, () => "255, 255, 255");
                 button.addEventListener("click", () => onSelect(index));
                 const row = { button, thumb, text, title, artist, track };
