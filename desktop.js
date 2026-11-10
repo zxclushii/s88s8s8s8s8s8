@@ -1,17 +1,30 @@
 // «Рабочий стол» сайта: фон на весь экран и папки поверх него. Папка открывает и закрывает своё окно —
 // как папки-вкладки на monotonousreign.neocities.org. Сами окна строят другие модули (плеер — ui.js).
+// Цвет папки подстраивается под фон: на тёмном месте картинки она белая, на светлом — чёрная.
 
 import { glossyFolder } from "./gloss.js";
 import { FONT, LABEL_FADE_RIGHT, TEXT_HALO, addHoverGlow, addPressBounce, el } from "./ui.js";
 
 const BACKGROUND_IMAGE = "img/bg.jpg";
+// Заливка страницы под фоном и её яркость (0…255) — её видно, если фон не загрузился.
+const PAGE_COLOR = "#0d0d0d";
+const PAGE_BRIGHTNESS = 13;
 const PAGE_GUTTER = 16;
-// Цвет папок: "black" или "white" — обе рисует gloss.js.
-const FOLDER_TONE = "black";
-// Ореол отделяет папку от фона того же цвета: чёрную — от тёмной стены, белую — от белой бумаги.
-const FOLDER_HALO = {
-    black: "drop-shadow(0 0 1px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 5px rgba(255, 255, 255, 0.45))",
-    white: "drop-shadow(0 0 1px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.7))",
+// Яркость фона под папкой, 0…255: темнее порога — папка белая, светлее — чёрная.
+const DARK_BELOW = 128;
+// Для замера яркости фон уменьшаем до такой ширины: под папкой остаётся с десяток клеток — для среднего хватает.
+const BRIGHTNESS_MAP_WIDTH = 256;
+// Папки двух цветов (обе рисует gloss.js). Ореол отделяет папку от фона, если тот окажется того же цвета;
+// свечение при наведении — того цвета, который виден на фоне этой папки.
+const TONES = {
+    black: {
+        halo: "drop-shadow(0 0 1px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 5px rgba(255, 255, 255, 0.45))",
+        hoverGlow: "0, 0, 0",
+    },
+    white: {
+        halo: "drop-shadow(0 0 1px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.7))",
+        hoverGlow: "255, 255, 255",
+    },
 };
 // Где стоят папки, в долях экрана. По порядку: на белом пятне фотографии со спиной и на тёмной стене
 // красной картинки — по обе стороны от стыка. Фон тянется вместе с экраном, поэтому доли, а не пиксели.
@@ -21,6 +34,53 @@ const FOLDER_CENTER_Y = 0.104;
 const FOLDER_ASPECT = 52 / 64;
 // Зазор между папками и окном под ними.
 const FOLDER_GAP = 14;
+
+/** Карта яркости картинки: уменьшенная и серая; считается один раз. */
+function readBrightness(image) {
+    const width = BRIGHTNESS_MAP_WIDTH;
+    const height = Math.round(width * image.naturalHeight / image.naturalWidth);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(image, 0, 0, width, height);
+    const { data } = ctx.getImageData(0, 0, width, height);
+    const values = new Float32Array(width * height);
+    for (let i = 0; i < values.length; i++) {
+        // веса цветов — насколько ярким каждый видит глаз (Rec. 709): красный темнее, чем кажется по числу
+        values[i] = 0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2];
+    }
+    return { values, width, height };
+}
+
+/**
+ * Средняя яркость картинки под прямоугольником экрана.
+ * Картинка растянута как object-fit: cover — увеличена, пока не закроет экран, лишнее обрезано поровну с двух сторон;
+ * повторяем тот же расчёт, чтобы узнать, какой её кусок оказался под прямоугольником.
+ */
+function brightnessUnder(map, image, rect) {
+    const box = image.getBoundingClientRect();
+    const scale = Math.max(box.width / image.naturalWidth, box.height / image.naturalHeight);
+    // левый верхний угол всей картинки на экране (обычно он за краем экрана)
+    const left = box.left + (box.width - image.naturalWidth * scale) / 2;
+    const top = box.top + (box.height - image.naturalHeight * scale) / 2;
+    // сколько пикселей экрана в одной клетке карты
+    const cell = image.naturalWidth * scale / map.width;
+    const clamp = (value, max) => Math.min(max, Math.max(0, value));
+    const x0 = clamp(Math.floor((rect.left - left) / cell), map.width - 1);
+    const y0 = clamp(Math.floor((rect.top - top) / cell), map.height - 1);
+    // хотя бы одна клетка, даже если прямоугольник вылез за картинку
+    const x1 = Math.max(x0 + 1, clamp(Math.ceil((rect.right - left) / cell), map.width));
+    const y1 = Math.max(y0 + 1, clamp(Math.ceil((rect.bottom - top) / cell), map.height));
+
+    let sum = 0;
+    for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+            sum += map.values[y * map.width + x];
+        }
+    }
+    return sum / ((x1 - x0) * (y1 - y0));
+}
 
 /**
  * Превращает root в рабочий стол: фон, место под папки сверху, окна — по центру под ними.
@@ -41,7 +101,7 @@ export function createDesktop(root) {
         padding: `calc(var(--folder-top) + var(--folder-height) + ${FOLDER_GAP}px) ${PAGE_GUTTER}px ${PAGE_GUTTER}px`,
         display: "grid",
         placeItems: "start center",
-        background: "#0d0d0d",
+        background: PAGE_COLOR,
         fontFamily: FONT,
     });
 
@@ -55,7 +115,31 @@ export function createDesktop(root) {
     }, { alt: "", src: BACKGROUND_IMAGE, "data-part": "background" });
     root.append(background);
 
-    let count = 0;
+    const folders = [];
+    // Яркость фона под прямоугольником экрана; пока фон грузится, она неизвестна.
+    let brightnessAt = null;
+
+    function pickTones() {
+        if (!brightnessAt) {
+            return;
+        }
+        for (const folder of folders) {
+            folder.setTone(brightnessAt(folder.button.getBoundingClientRect()) < DARK_BELOW ? "white" : "black");
+        }
+    }
+
+    background.addEventListener("load", () => {
+        const map = readBrightness(background);
+        brightnessAt = (rect) => brightnessUnder(map, background, rect);
+        pickTones();
+    });
+    background.addEventListener("error", () => {
+        // картинки нет — под папками заливка страницы
+        brightnessAt = () => PAGE_BRIGHTNESS;
+        pickTones();
+    });
+    // на другом размере окна фон обрезан иначе, и под папкой оказывается другой его кусок
+    window.addEventListener("resize", pickTones);
 
     return {
         /**
@@ -64,9 +148,6 @@ export function createDesktop(root) {
          * window — окно с методом setOpen(true|false); без окна папка пустая и не нажимается.
          */
         addFolder({ label, title, window: target = null }) {
-            const icon = glossyFolder(FOLDER_TONE);
-            Object.assign(icon.style, { display: "block", width: "100%", height: "auto", filter: FOLDER_HALO[FOLDER_TONE] });
-
             // подпись поверх папки, с чёрной подложкой — как .tab-label на monotonousreign
             const caption = el("span", {
                 position: "absolute",
@@ -102,8 +183,10 @@ export function createDesktop(root) {
             const button = el("button", {
                 position: "absolute",
                 top: "var(--folder-top)",
-                left: `${FOLDER_CENTERS_X[count] * 100}%`,
+                left: `${FOLDER_CENTERS_X[folders.length] * 100}%`,
+                // высота задана явно: место папки на фоне нужно знать ещё до того, как в ней появится значок
                 width: "var(--folder-width)",
+                height: "var(--folder-height)",
                 // не transform: его занимает анимация нажатия
                 marginLeft: "calc(var(--folder-width) / -2)",
                 padding: "0",
@@ -111,13 +194,33 @@ export function createDesktop(root) {
                 background: "none",
                 cursor: target ? "pointer" : "default",
                 WebkitTapHighlightColor: "transparent",
-            }, { type: "button", "aria-label": title, "data-part": "folder" }, [icon, caption, dot]);
-            count += 1;
+                // пока цвет не выбран (фон ещё грузится), папку не показываем — иначе она мигнула бы не тем цветом
+                visibility: "hidden",
+            }, { type: "button", "aria-label": title, "data-part": "folder" }, [caption, dot]);
+
+            let tone = null;
+            let icon = null;
+            function setTone(next) {
+                if (next === tone) {
+                    return;
+                }
+                tone = next;
+                const fresh = glossyFolder(tone);
+                Object.assign(fresh.style, { display: "block", width: "100%", height: "auto", filter: TONES[tone].halo });
+                if (icon) {
+                    icon.replaceWith(fresh);
+                } else {
+                    button.prepend(fresh);
+                }
+                icon = fresh;
+                button.dataset.tone = tone;
+                button.style.visibility = "visible";
+            }
 
             if (target) {
                 let open = false;
                 button.setAttribute("aria-pressed", "false");
-                addHoverGlow(button);
+                addHoverGlow(button, () => TONES[tone].hoverGlow);
                 addPressBounce(button);
                 button.addEventListener("click", () => {
                     open = !open;
@@ -129,6 +232,9 @@ export function createDesktop(root) {
                 button.disabled = true;
             }
             root.append(button);
+            folders.push({ button, setTone });
+            // фон мог успеть загрузиться раньше, чем добавили папку
+            pickTones();
         },
     };
 }

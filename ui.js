@@ -128,8 +128,11 @@ function drawPlaceholderCover() {
     return canvas.toDataURL("image/png");
 }
 
-/** Чёрное свечение при наведении — как .tab:hover на monotonousreign. */
-export function addHoverGlow(node) {
+/**
+ * Свечение при наведении — как .tab:hover на monotonousreign. Обычно чёрное;
+ * glowRgb на момент наведения говорит другой цвет ("r, g, b"): на тёмном фоне чёрного свечения не видно.
+ */
+export function addHoverGlow(node, glowRgb = () => "0, 0, 0") {
     let glow = null;
     node.addEventListener("pointerenter", (event) => {
         // на тачскрине «наведения» нет — свечение залипло бы после тапа
@@ -137,8 +140,9 @@ export function addHoverGlow(node) {
             return;
         }
         glow?.cancel();
+        const rgb = glowRgb();
         glow = node.animate(
-            [{ filter: "drop-shadow(0 0 0 rgba(0, 0, 0, 0))" }, { filter: "drop-shadow(0 0 8px rgba(0, 0, 0, 0.95))" }],
+            [{ filter: `drop-shadow(0 0 0 rgba(${rgb}, 0))` }, { filter: `drop-shadow(0 0 8px rgba(${rgb}, 0.95))` }],
             { duration: 200, easing: "ease-out", fill: "forwards" },
         );
     });
