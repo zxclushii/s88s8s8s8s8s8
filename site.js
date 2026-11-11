@@ -1,5 +1,6 @@
 // @ts-check
-// Сайт — диск SS:\angel. Главная: надпись, мем, папки, внизу терминал. Папка mp3 — плеер, в ней папки-плейлисты.
+// Сайт — диск SS:\angel. Главная: надпись, мем, папки, внизу терминал. Папка mp3 — плеер, в ней папки-плейлисты;
+// папка work — лента с лабой.
 // Где мы — в адресе страницы (#mp3/liked), поэтому работает «назад» и ссылку прямо на плейлист можно кинуть.
 
 import { byId } from "./dom.js";
@@ -7,11 +8,12 @@ import { renderFolders } from "./folders.js";
 import { hashFor, pathFromHash, relativePath, samePath } from "./paths.js";
 import { mountPlayer } from "./player.js";
 import { createTerminal } from "./terminal.js";
+import { mountWork } from "./work.js";
 
 /** @typedef {import("./paths.js").Path} Path */
 /** @typedef {import("./paths.js").Folder} Folder */
 
-const screens = { home: byId("home", HTMLElement), mp3: byId("mp3", HTMLElement) };
+const screens = { home: byId("home", HTMLElement), mp3: byId("mp3", HTMLElement), work: byId("work", HTMLElement) };
 
 // плейлисты — подпапки mp3 — приходят с GitHub; до этого их список неизвестен
 /** @type {Folder} */
@@ -21,8 +23,8 @@ const root = {
     name: "angel",
     folders: [
         mp3,
-        // работы ещё нет: папка стоит на месте, но открыть её нельзя
-        { name: "work", locked: true },
+        // лента с лабой: внутри папок нет, экран один
+        { name: "work" },
     ],
 };
 // первая папка на экране mp3 — наверх, как в проводнике
@@ -45,6 +47,8 @@ renderFolders(byId("folders", HTMLElement), root.folders ?? [], (folder) => open
 
 const playlistList = byId("mp3-folders", HTMLElement);
 let playlistFolders = renderFolders(playlistList, [UP], () => terminal.execute("cd .."));
+renderFolders(byId("work-folders", HTMLElement), [UP], () => terminal.execute("cd .."));
+mountWork();
 
 const player = mountPlayer({
     onPlaylists(playlists) {
@@ -75,7 +79,7 @@ function go(path) {
 /** @param {Path} path */
 function show(path) {
     current = path;
-    const screen = path[0] === "mp3" ? "mp3" : "home";
+    const screen = path[0] === "mp3" || path[0] === "work" ? path[0] : "home";
     document.body.dataset.screen = screen;
     // спрятанный экран не должен держать фокус: кнопка осталась бы невидимой, но нажимаемой с клавиатуры
     for (const [name, element] of Object.entries(screens)) {

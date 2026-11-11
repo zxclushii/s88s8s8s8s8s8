@@ -195,6 +195,352 @@
             </div>
         </section>
 
+        <section class="work" id="work" aria-label="work">
+            <nav class="work-rail" aria-label="Разделы ленты">
+                <ul class="folders folders-small" id="work-folders" aria-label="Папки"></ul>
+                <!-- цепочка разделов: звезда — у того, который сейчас читают -->
+                <ol class="chain" id="work-chain">
+                    <li>
+                        <button type="button" data-target="w-cond">
+                            <span class="chain-mark"></span><span class="chain-n"></span
+                            ><span class="chain-name">условие</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" data-target="w-curve">
+                            <span class="chain-mark"></span><span class="chain-n"></span
+                            ><span class="chain-name">кривая</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" data-target="w-step1">
+                            <span class="chain-mark"></span><span class="chain-n">1</span
+                            ><span class="chain-name">проверка</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" data-target="w-step2">
+                            <span class="chain-mark"></span><span class="chain-n">2</span
+                            ><span class="chain-name">X<sub>A</sub> = 7G</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" data-target="w-step3">
+                            <span class="chain-mark"></span><span class="chain-n">3</span
+                            ><span class="chain-name">Y<sub>B</sub> = 4G</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" data-target="w-step4">
+                            <span class="chain-mark"></span><span class="chain-n">4</span
+                            ><span class="chain-name">K<sub>A</sub> = 7Y<sub>B</sub></span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" data-target="w-step5">
+                            <span class="chain-mark"></span><span class="chain-n">5</span
+                            ><span class="chain-name">K<sub>B</sub> = 4X<sub>A</sub></span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" data-target="w-key">
+                            <span class="chain-mark"></span><span class="chain-n"></span
+                            ><span class="chain-name">ключ</span>
+                        </button>
+                    </li>
+                </ol>
+            </nav>
+
+            <article class="tape">
+                <header class="tape-head">
+                    <img class="wings" src="img/work/wings.webp" width="701" height="160" alt="" />
+                    <h2 class="tape-title">эллиптические кривые</h2>
+                    <p class="tape-meta">лаба 9 · Диффи — Хеллман на эллиптических кривых · вариант 7</p>
+                    <img class="deco deco-stars-top" src="img/work/stars-top.webp" width="169" height="130" alt="" />
+                </header>
+
+                <section class="tape-part" id="w-cond" aria-labelledby="w-cond-h">
+                    <h3 class="tape-h" id="w-cond-h">условие</h3>
+                    <p class="formula">y² = x³ − x + 2 &nbsp;(mod 29)</p>
+                    <dl class="given">
+                        <div>
+                            <dt>базовая точка</dt>
+                            <dd>G = (10; 8)</dd>
+                        </div>
+                        <div>
+                            <dt>секреты</dt>
+                            <dd>A — 7, &nbsp;B — 4</dd>
+                        </div>
+                    </dl>
+                    <p class="prose">
+                        Найти точки, которые A и B отправят друг другу, — X<sub>A</sub> = 7G и Y<sub>B</sub> = 4G, — и
+                        общий ключ, который каждый посчитает у себя.
+                    </p>
+                </section>
+
+                <section class="tape-part" id="w-curve" aria-labelledby="w-curve-h">
+                    <h3 class="tape-h" id="w-curve-h">кривая</h3>
+                    <div class="curve">
+                        <div class="prose">
+                            <p>
+                                Кривая — это все точки (x; y), для которых y² = x³ − x + 2. Только считается всё по
+                                модулю 29: числа идут по кругу, как часы на 29 делений. Поэтому вместо гладкой линии —
+                                29 точек на сетке и ещё одна, O, «на бесконечности».
+                            </p>
+                            <p>
+                                Точки умеют складываться. На обычной плоскости через две точки проводят прямую, она
+                                задевает кривую в третьей — её отражают, это и есть сумма. Если точку складывают саму с
+                                собой, вместо прямой берут касательную: это удвоение. По модулю 29 картинка рассыпается
+                                на точки, а формулы остаются те же.
+                            </p>
+                            <p>
+                                7G — это G, сложенная сама с собой семь раз. Но быстрее удваивать: 2G, 4G, а потом
+                                добрать — 7G = 4G + 2G + G.
+                            </p>
+                            <p>
+                                A умножает чужое Y<sub>B</sub> на свои 7, B умножает X<sub>A</sub> на свои 4. Обоим
+                                выходит 28G — одна и та же точка. А тот, кто подслушал только 7G и 4G, не узнает ни 7,
+                                ни 4: по точке трудно понять, сколько раз складывали. Здесь числа игрушечные, в
+                                настоящих кривых модуль длиной около 256 бит.
+                            </p>
+                        </div>
+
+                        <div class="demo" id="demo">
+                            <svg class="plot" id="curve-plot" viewBox="0 0 620 620" role="img"></svg>
+                            <p class="demo-note" id="demo-note" aria-live="polite"></p>
+                            <div class="secrets">
+                                <label class="secret">
+                                    <span>A загадал</span>
+                                    <input id="secret-a" type="number" min="1" max="29" value="7" inputmode="numeric" />
+                                </label>
+                                <label class="secret">
+                                    <span>B загадал</span>
+                                    <input id="secret-b" type="number" min="1" max="29" value="4" inputmode="numeric" />
+                                </label>
+                            </div>
+                            <div class="demo-modes" id="demo-modes" role="group" aria-label="Что показать на кривой">
+                                <button type="button" data-mode="a" aria-pressed="true">путь A</button>
+                                <button type="button" data-mode="b" aria-pressed="false">путь B</button>
+                                <button type="button" data-mode="key" aria-pressed="false">ключ</button>
+                            </div>
+                            <dl class="demo-out">
+                                <div>
+                                    <dt>X<sub>A</sub> = <span data-secret="a">7</span>G</dt>
+                                    <dd data-point="xa">(8; 10)</dd>
+                                </div>
+                                <div>
+                                    <dt>Y<sub>B</sub> = <span data-secret="b">4</span>G</dt>
+                                    <dd data-point="yb">(21; 22)</dd>
+                                </div>
+                                <div>
+                                    <dt>K<sub>A</sub> = <span data-secret="a">7</span> · Y<sub>B</sub></dt>
+                                    <dd data-point="ka">(16; 15)</dd>
+                                </div>
+                                <div>
+                                    <dt>K<sub>B</sub> = <span data-secret="b">4</span> · X<sub>A</sub></dt>
+                                    <dd data-point="kb">(16; 15)</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tape-part" id="w-count" aria-labelledby="w-count-h">
+                    <h3 class="tape-h" id="w-count-h">счёт</h3>
+
+                    <div class="step" id="w-step1">
+                        <span class="step-n">1</span>
+                        <div class="page">
+                            <img
+                                class="piece"
+                                src="img/work/check.webp"
+                                width="858"
+                                height="245"
+                                style="--px: 858"
+                                alt="Шаг 1, проверка кривой и точки G: 4a³ + 27b² = −4 + 108 = 104 ≡ 17 ≠ 0; G(10; 8): 8² = 64 ≡ 6, 10³ − 10 + 2 = 992 ≡ 6."
+                            />
+                        </div>
+                        <div class="margin">
+                            <p>кривая не вырождена: 4a³ + 27b² ≡ 17, не ноль</p>
+                            <p>G лежит на кривой: и слева, и справа выходит 6</p>
+                        </div>
+                    </div>
+
+                    <div class="step" id="w-step2">
+                        <span class="step-n">2</span>
+                        <div class="page">
+                            <img
+                                class="piece"
+                                src="img/work/xa-head.webp"
+                                width="829"
+                                height="68"
+                                style="--px: 829"
+                                alt="Шаг 2, вычисление X_A = 7G = 4G + 2G + G."
+                            />
+                            <img
+                                class="piece"
+                                src="img/work/2g.webp"
+                                width="757"
+                                height="496"
+                                style="--px: 757"
+                                alt="2G = 2(10; 8): λ ≡ (3·10² − 1)/(2·8) = 299/16 ≡ 9/16; 16⁻¹ ≡ 20, потому что 16·20 = 320 = 11·29 + 1; λ ≡ 9·20 = 180 ≡ 6; x₃ ≡ 36 − 20 = 16; y₃ ≡ 6(10 − 16) − 8 = −44 ≡ 14; 2G = (16; 14)."
+                            />
+                            <img
+                                class="piece shift"
+                                src="img/work/4g.webp"
+                                width="727"
+                                height="515"
+                                style="--px: 727"
+                                alt="4G = 2(16; 14): λ ≡ (3·16² − 1)/(2·14) = 767/28 ≡ 13/28; 28⁻¹ ≡ 28, потому что 28·28 = 784 = 27·29 + 1; λ ≡ 13·28 = 364 ≡ 16; x₃ ≡ 256 − 32 = 224 ≡ 21; y₃ ≡ 16(16 − 21) − 14 = −94 ≡ 22; 4G = (21; 22)."
+                            />
+                            <img
+                                class="piece"
+                                src="img/work/6g.webp"
+                                width="822"
+                                height="568"
+                                style="--px: 822"
+                                alt="6G = 4G + 2G = (21; 22) + (16; 14): λ ≡ (14 − 22)/(16 − 21) = 8/5; 5⁻¹ ≡ 6; λ ≡ 48 ≡ 19; x₃ ≡ 361 − 21 − 16 = 324 ≡ 5; y₃ ≡ 19(21 − 5) − 22 = 282 ≡ 21; 6G = (5; 21)."
+                            />
+                            <img
+                                class="piece shift"
+                                src="img/work/7g.webp"
+                                width="709"
+                                height="462"
+                                style="--px: 709"
+                                alt="7G = 6G + G = (5; 21) + (10; 8): λ ≡ (8 − 21)/(10 − 5) = −13/5; λ ≡ −13·6 = −78 ≡ 9; x₃ ≡ 81 − 5 − 10 = 66 ≡ 8; y₃ ≡ 9(5 − 8) − 21 = −48 ≡ 10; X_A = 7G = (8; 10)."
+                            />
+                        </div>
+                        <div class="margin">
+                            <p>7G = 4G + 2G + G: два удвоения и два сложения вместо шести сложений подряд</p>
+                            <p>каждое обратное число проверено прямо в строке: 16 · 20 = 320 = 11 · 29 + 1</p>
+                        </div>
+                        <img class="deco deco-sparkle" src="img/work/sparkle.webp" width="136" height="187" alt="" />
+                        <img class="deco deco-stars3" src="img/work/stars3.webp" width="94" height="240" alt="" />
+                    </div>
+
+                    <div class="step" id="w-step3">
+                        <span class="step-n">3</span>
+                        <div class="page">
+                            <p class="typed">Y<sub>B</sub> = 4G = (21; 22)</p>
+                        </div>
+                        <div class="margin">
+                            <p>в тетради этой строки нет: 4G уже посчитан в шаге 2</p>
+                        </div>
+                    </div>
+
+                    <div class="step" id="w-step4">
+                        <span class="step-n">4</span>
+                        <div class="page">
+                            <img
+                                class="piece"
+                                src="img/work/ka-head.webp"
+                                width="1043"
+                                height="100"
+                                style="--px: 1043"
+                                alt="Шаг 4, вычисление K_A = 7Y_B = 4Y_B + 2Y_B + Y_B."
+                            />
+                            <img
+                                class="piece"
+                                src="img/work/2yb.webp"
+                                width="864"
+                                height="583"
+                                style="--px: 864"
+                                alt="2Y_B = 2(21; 22): λ ≡ (3·21² − 1)/(2·22) = 1322/44 ≡ 17/15; 15⁻¹ ≡ 2; λ ≡ 34 ≡ 5; x₃ ≡ 25 − 42 = −17 ≡ 12; y₃ ≡ 5(21 − 12) − 22 = 23; 2Y_B = (12; 23)."
+                            />
+                            <img
+                                class="piece shift"
+                                src="img/work/4yb.webp"
+                                width="851"
+                                height="530"
+                                style="--px: 851"
+                                alt="4Y_B = 2(12; 23): λ ≡ (3·12² − 1)/(2·23) = 431/46 ≡ 25/17; 17⁻¹ ≡ 12, потому что 17·12 = 204 = 7·29 + 1; λ ≡ 300 ≡ 10; x₃ ≡ 100 − 24 = 76 ≡ 18; y₃ ≡ 10(12 − 18) − 23 = −83 ≡ 4; 4Y_B = (18; 4)."
+                            />
+                            <img
+                                class="piece"
+                                src="img/work/6yb.webp"
+                                width="923"
+                                height="577"
+                                style="--px: 923"
+                                alt="6Y_B = 4Y_B + 2Y_B = (18; 4) + (12; 23): λ ≡ (23 − 4)/(12 − 18) = −19/6; 6⁻¹ ≡ 5; λ ≡ −95 ≡ 21; x₃ ≡ 441 − 18 − 12 = 411 ≡ 5; y₃ ≡ 21(18 − 5) − 4 = 269 ≡ 8; 6Y_B = (5; 8)."
+                            />
+                            <img
+                                class="piece shift"
+                                src="img/work/7yb.webp"
+                                width="798"
+                                height="503"
+                                style="--px: 798"
+                                alt="7Y_B = 6Y_B + Y_B = (5; 8) + (21; 22): λ ≡ (22 − 8)/(21 − 5) = 14/16; λ ≡ 14·20 = 280 ≡ 19; x₃ ≡ 361 − 5 − 21 = 335 ≡ 16; y₃ ≡ 19(5 − 16) − 8 = −217 ≡ 15; K_A = 7Y_B = (16; 15)."
+                            />
+                        </div>
+                        <div class="margin">
+                            <p>та же схема, что для 7G, только вместо G — точка, которую прислал B</p>
+                        </div>
+                        <img class="deco deco-chain" src="img/work/chain.webp" width="142" height="297" alt="" />
+                        <img class="deco deco-sword" src="img/work/sword.webp" width="100" height="370" alt="" />
+                    </div>
+
+                    <div class="step" id="w-step5">
+                        <span class="step-n">5</span>
+                        <div class="page">
+                            <img
+                                class="piece"
+                                src="img/work/kb-head.webp"
+                                width="675"
+                                height="80"
+                                style="--px: 675"
+                                alt="Шаг 5, вычисление K_B = 4X_A."
+                            />
+                            <img
+                                class="piece"
+                                src="img/work/2xa.webp"
+                                width="846"
+                                height="604"
+                                style="--px: 846"
+                                alt="2X_A = 2(8; 10): λ ≡ (3·8² − 1)/(2·10) = 191/20 ≡ 17/20; 20⁻¹ ≡ 16; λ ≡ 272 ≡ 11; x₃ ≡ 121 − 16 = 105 ≡ 18; y₃ ≡ 11(8 − 18) − 10 = −120 ≡ 25; 2X_A = (18; 25)."
+                            />
+                            <img
+                                class="piece shift"
+                                src="img/work/4xa.webp"
+                                width="897"
+                                height="633"
+                                style="--px: 897"
+                                alt="4X_A = 2(18; 25): λ ≡ (3·18² − 1)/(2·25) = 971/50 ≡ 14/21; 21⁻¹ ≡ 18, потому что 21·18 = 378 = 13·29 + 1; λ ≡ 252 ≡ 20; x₃ ≡ 400 − 36 = 364 ≡ 16; y₃ ≡ 20(18 − 16) − 25 = 15; K_B = 4X_A = (16; 15)."
+                            />
+                        </div>
+                        <div class="margin">
+                            <p>у B проще: 4 · X<sub>A</sub> — это два удвоения</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tape-part" id="w-key" aria-labelledby="w-key-h">
+                    <h3 class="tape-h" id="w-key-h">ключ</h3>
+                    <p class="key">
+                        <span>K<sub>A</sub> = K<sub>B</sub> = (16; 15)</span>
+                        <svg class="key-star" aria-hidden="true"><use href="#star" /></svg>
+                    </p>
+                    <p class="key-note">у A и у B вышла одна и та же точка</p>
+                </section>
+
+                <footer class="tape-end">
+                    <img
+                        class="five"
+                        src="img/work/five.webp"
+                        width="1941"
+                        height="636"
+                        alt="Написано от руки: «можно пять баллов пожалуйста)»"
+                    />
+                    <img
+                        class="chibi"
+                        src="img/work/chibi.webp"
+                        width="827"
+                        height="855"
+                        alt="Рисунок от руки: зажмуренный чиби"
+                    />
+                </footer>
+            </article>
+        </section>
+
         <section class="term" aria-label="angel terminal">
             <label class="term-name" for="term-input">angel terminal</label>
             <div class="term-box" id="term-box">

@@ -18,6 +18,25 @@
     font-display: swap;
     unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
+/* прямой Cormorant — только для текста ленты в work */
+@font-face {
+    font-family: "Cormorant Garamond";
+    src: url("../fonts/CormorantGaramond-var.woff2") format("woff2");
+    font-weight: 300 700;
+    font-style: normal;
+    font-display: swap;
+    unicode-range:
+        U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+        U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: "Cormorant Garamond";
+    src: url("../fonts/CormorantGaramond-var-cyrillic.woff2") format("woff2");
+    font-weight: 300 700;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
 @font-face {
     font-family: "UnifrakturMaguntia";
     src: url("../fonts/UnifrakturMaguntia-400.woff2") format("woff2");
@@ -58,6 +77,8 @@
     --gothic: "UnifrakturMaguntia", "Cormorant Garamond", serif;
 
     --gut: 7.6vw;
+    /* восьмиконечная звезда из спрайта — маской, для меню work */
+    --star-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-100 -100 200 200'%3E%3Cpath d='M-6.9 16.6L0 100L6.9 16.6L31.1 31.1L16.6 6.9L72 0L16.6 -6.9L31.1 -31.1L6.9 -16.6L0 -100L-6.9 -16.6L-31.1 -31.1L-16.6 -6.9L-72 0L-16.6 6.9L-31.1 31.1L-6.9 16.6Z'/%3E%3C/svg%3E");
     /* терминал: кегль, отступ от низа и полная высота — подпись, поля и четыре строки (три ответа и ввод) */
     --term-font: clamp(15px, 0.92vw, 18px);
     --term-bottom: 7.5vh;
@@ -106,7 +127,8 @@ body {
 /* экраны: виден тот, что записан в body[data-screen], остальные тают */
 
 .home,
-.mp3 {
+.mp3,
+.work {
     position: fixed;
     inset: 0;
     transition:
@@ -115,7 +137,8 @@ body {
 }
 
 body:not([data-screen="home"]) .home,
-body:not([data-screen="mp3"]) .mp3 {
+body:not([data-screen="mp3"]) .mp3,
+body:not([data-screen="work"]) .work {
     opacity: 0;
     visibility: hidden;
 }
@@ -753,6 +776,7 @@ body:not([data-screen="mp3"]) .mp3 {
     bottom: var(--term-bottom);
     left: var(--gut);
     z-index: 2;
+    transition: bottom 0.4s ease-in-out;
 }
 
 .term-name {
@@ -823,6 +847,493 @@ body:not([data-screen="mp3"]) .mp3 {
 .term-input::placeholder {
     color: var(--grey);
     opacity: 1;
+}
+
+/* work — лента с лабой: своя прокрутка, меню слева стоит на месте */
+
+.work {
+    /* левая колонка под меню и ширина колонки со сканами */
+    --rail: 21vw;
+    --col: 43vw;
+    /* сканы — в одном масштабе, чтобы почерк везде был одного размера: ширина = пиксели скана × --k */
+    --k: 0.04vw;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: var(--s3) transparent;
+    scrollbar-width: thin;
+}
+
+/* в work терминал — одна строка у самого низа, а лента уходит под полосу фона за ним */
+body[data-screen="work"] {
+    --term-bottom: 18px;
+}
+
+body[data-screen="work"] .term-name {
+    display: none;
+}
+
+/* ответы терминала в work видны, только пока в нём печатают: остальное время — одна строка ввода */
+body[data-screen="work"] .term-box:not(:focus-within) .term-log {
+    display: none;
+}
+
+body[data-screen="work"] .term::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -14px calc(-1 * var(--gut)) calc(-1 * var(--term-bottom));
+    background: var(--ink);
+}
+
+.work-rail {
+    position: fixed;
+    top: 5vh;
+    left: var(--gut);
+    z-index: 1;
+    width: calc(var(--rail) - var(--gut) - 1.5vw);
+}
+
+.work-rail .folders-small {
+    position: static;
+}
+
+/* цепочка: пунктирная нить, бусины, готические цифры шагов; у текущего раздела вместо бусины — звезда */
+.chain {
+    position: relative;
+    margin: 7vh 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.chain::before {
+    content: "";
+    position: absolute;
+    top: 12px;
+    bottom: 12px;
+    left: 8px;
+    border-left: 1px dotted var(--grey);
+}
+
+.chain button {
+    display: grid;
+    grid-template-columns: 17px 26px auto;
+    column-gap: 6px;
+    align-items: center;
+    width: 100%;
+    padding: 5px 0;
+    border: 0;
+    background: none;
+    color: var(--grey);
+    font: 400 14px/1.3 var(--sans);
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.chain-mark {
+    position: relative;
+    width: 7px;
+    height: 7px;
+    margin-left: 5px;
+    border-radius: 50%;
+    background: var(--s3);
+}
+
+.chain-n {
+    color: var(--grey);
+    font: 400 19px/1 var(--gothic);
+    text-align: center;
+}
+
+.chain button[aria-current="true"] {
+    color: var(--white);
+}
+
+.chain button[aria-current="true"] .chain-mark {
+    width: 17px;
+    height: 17px;
+    margin-left: 0;
+    border-radius: 0;
+    background: var(--white);
+    -webkit-mask: var(--star-mask) center / contain no-repeat;
+    mask: var(--star-mask) center / contain no-repeat;
+}
+
+@media (hover: hover) {
+    .chain button:hover {
+        color: var(--white);
+    }
+}
+
+.chain button:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: 2px;
+}
+
+.tape {
+    margin-left: var(--rail);
+    padding: 0 var(--gut) calc(var(--term-bottom) + 90px) 0;
+}
+
+.tape-head {
+    position: relative;
+    padding-top: 9vh;
+}
+
+.wings {
+    display: block;
+    width: min(44vw, 640px);
+    height: auto;
+    margin: 0 0 1vh 4vw;
+}
+
+.tape-title,
+.tape-h {
+    margin: 0;
+    color: var(--white);
+    font: italic 400 clamp(64px, 7vw, 132px) / 0.92 var(--serif);
+}
+
+.tape-title {
+    font-size: clamp(84px, 9.4vw, 176px);
+}
+
+.tape-meta {
+    margin: 3.4vh 0 0 0.4vw;
+    color: var(--grey);
+    font: 400 15px/1.4 var(--sans);
+}
+
+.tape-part {
+    position: relative;
+    margin-top: 22vh;
+    scroll-margin-top: 4vh;
+}
+
+.prose {
+    width: var(--col);
+    margin: 0;
+    color: var(--white-2);
+    font: 400 21px/1.5 var(--serif);
+}
+
+.prose p {
+    margin: 0 0 1em;
+}
+
+.prose sub,
+.demo sub,
+.margin sub,
+.typed sub,
+.key sub {
+    font-size: 0.68em;
+}
+
+/* условие */
+.formula {
+    margin: 6vh 0 0;
+    color: var(--white);
+    font: italic 400 clamp(40px, 3.6vw, 64px) / 1 var(--serif);
+}
+
+.given {
+    display: flex;
+    gap: 6vw;
+    margin: 3vh 0;
+}
+
+.given dt {
+    margin-bottom: 6px;
+    color: var(--grey);
+    font: 400 14px var(--sans);
+}
+
+.given dd {
+    margin: 0;
+    color: var(--white);
+    font: italic 400 30px/1 var(--serif);
+}
+
+/* кривая: текст и демка рядом */
+.curve {
+    display: grid;
+    grid-template-columns: var(--col) 1fr;
+    gap: 4vw;
+    align-items: start;
+    margin-top: 6vh;
+}
+
+.plot {
+    display: block;
+    width: 100%;
+    max-width: 620px;
+    height: auto;
+    margin-top: 2vh;
+}
+
+.plot-point {
+    fill: var(--grey);
+}
+
+.plot-tick {
+    fill: var(--grey);
+    font: 400 12px var(--mono);
+}
+
+.plot-path polyline {
+    fill: none;
+    stroke: var(--white-2);
+    stroke-width: 1.3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.plot-path-dotted polyline {
+    stroke-width: 1.8;
+    stroke-dasharray: 1 5;
+}
+
+.plot-hot {
+    fill: var(--white);
+}
+
+.plot-star {
+    fill: var(--white);
+}
+
+.plot-label {
+    fill: var(--white-2);
+    font: 400 14px var(--sans);
+}
+
+.demo-note {
+    min-height: 2.9em;
+    margin: 6px 0 0;
+    color: var(--grey);
+    font: 400 14px/1.45 var(--sans);
+}
+
+.secrets {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 2vh;
+}
+
+.secret {
+    display: block;
+    padding: 14px 18px;
+    background: var(--s1);
+    cursor: text;
+    transition: background 0.2s;
+}
+
+.secret:focus-within {
+    background: var(--s2);
+}
+
+.secret span {
+    display: block;
+    color: var(--grey);
+    font: 400 13px var(--sans);
+}
+
+.secret input {
+    width: 100%;
+    margin-top: 4px;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: none;
+    color: var(--white);
+    font: italic 400 34px/1.1 var(--serif);
+    caret-color: var(--white);
+    appearance: textfield;
+}
+
+.secret input::-webkit-inner-spin-button,
+.secret input::-webkit-outer-spin-button {
+    margin: 0;
+    appearance: none;
+}
+
+.demo-modes {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.demo-modes button {
+    padding: 7px 13px;
+    border: 0;
+    background: var(--s2);
+    color: var(--white-2);
+    font: 400 13px var(--sans);
+    cursor: pointer;
+    transition:
+        background 0.2s,
+        color 0.2s;
+}
+
+.demo-modes button[aria-pressed="true"] {
+    background: var(--white);
+    color: var(--ink);
+}
+
+.demo-modes button:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: 3px;
+}
+
+.demo-out {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 10px;
+    margin: 3vh 0 0;
+}
+
+.demo-out dt {
+    color: var(--grey);
+    font: 400 13px var(--sans);
+}
+
+.demo-out dd {
+    margin: 4px 0 0;
+    color: var(--white);
+    font: italic 400 26px/1.1 var(--serif);
+}
+
+/* счёт: номер шага, кусок тетради, заметка на полях */
+.step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 5.2vw var(--col) 1fr;
+    column-gap: 1.6vw;
+    margin-top: 9vh;
+    scroll-margin-top: 6vh;
+}
+
+.step-n {
+    padding-top: 4px;
+    color: var(--white-2);
+    font: 400 64px/0.8 var(--gothic);
+}
+
+.piece {
+    display: block;
+    width: calc(var(--px) * var(--k));
+    max-width: 100%;
+    height: auto;
+}
+
+.piece + .piece {
+    margin-top: 2.6vh;
+}
+
+/* куски лежат чуть вразнобой, как на листе */
+.piece.shift {
+    margin-left: 2.4vw;
+}
+
+.typed {
+    margin: 0;
+    padding: 6px 0 4px;
+    color: var(--white);
+    font: italic 400 34px/1.2 var(--serif);
+}
+
+.margin {
+    max-width: 250px;
+    padding-top: 10px;
+    color: var(--grey);
+    font: 400 14px/1.45 var(--sans);
+}
+
+.margin p {
+    margin: 0 0 1.2em;
+}
+
+/* рисунки из тетради — на полях, примерно там же, где были на листе */
+.deco {
+    position: absolute;
+    display: block;
+    height: auto;
+    pointer-events: none;
+}
+
+.deco-stars-top {
+    top: 12vh;
+    right: 4vw;
+    width: 120px;
+}
+
+.deco-sparkle {
+    top: 62%;
+    right: 3vw;
+    width: 92px;
+}
+
+.deco-stars3 {
+    bottom: 3%;
+    left: -1vw;
+    width: 52px;
+}
+
+.deco-chain {
+    top: 16%;
+    right: 6vw;
+    width: 74px;
+}
+
+.deco-sword {
+    top: 60%;
+    right: 9vw;
+    width: 48px;
+}
+
+/* ключ и конец ленты */
+.key {
+    display: flex;
+    gap: 2.4vw;
+    align-items: center;
+    margin: 5vh 0 0;
+    color: var(--white);
+    font: italic 400 clamp(56px, 6vw, 112px) / 1 var(--serif);
+}
+
+.key-star {
+    flex: none;
+    width: 0.5em;
+    height: 0.5em;
+    fill: var(--white);
+}
+
+.key-note {
+    margin: 2vh 0 0;
+    color: var(--grey);
+    font: 400 14px var(--sans);
+}
+
+.tape-end {
+    position: relative;
+    height: 100vh;
+    margin-top: 18vh;
+}
+
+.five {
+    position: absolute;
+    top: 6vh;
+    left: -4vw;
+    width: 54vw;
+    height: auto;
+}
+
+.chibi {
+    position: absolute;
+    top: 30vh;
+    right: 2vw;
+    width: 21vw;
+    height: auto;
 }
 
 /* телефон: главная — колонкой, mp3 — список и мини-плеер, по тапу — плеер во весь экран */
@@ -1218,5 +1729,126 @@ body:not([data-screen="mp3"]) .mp3 {
     #btn-mute,
     .range.volume {
         display: none;
+    }
+}
+
+/* work на телефоне: одна колонка; от меню остаётся только «..» сверху, заметки — под кусками тетради */
+@media (max-width: 760px) {
+    .work {
+        --k: 0.084vw;
+    }
+
+    .work-rail {
+        position: static;
+        width: auto;
+        padding: 3vh var(--gut) 0;
+    }
+
+    .work-rail .folders-small {
+        padding: 0;
+    }
+
+    .chain {
+        display: none;
+    }
+
+    .tape {
+        margin-left: 0;
+        padding: 0 var(--gut) calc(var(--term-bottom) + 80px);
+    }
+
+    .tape-head {
+        padding-top: 4vh;
+    }
+
+    .wings {
+        width: 78vw;
+        margin-left: 2vw;
+    }
+
+    .tape-title {
+        font-size: 15vw;
+    }
+
+    .tape-h {
+        font-size: 14vw;
+    }
+
+    .tape-part {
+        margin-top: 12vh;
+    }
+
+    .prose {
+        width: auto;
+        font-size: 19px;
+    }
+
+    .formula {
+        font-size: 9vw;
+    }
+
+    .given {
+        gap: 10vw;
+    }
+
+    .curve {
+        display: block;
+    }
+
+    .demo {
+        margin-top: 4vh;
+    }
+
+    .step {
+        display: block;
+        margin-top: 7vh;
+    }
+
+    .step-n {
+        display: block;
+        margin-bottom: 2vh;
+        font-size: 48px;
+    }
+
+    .piece.shift {
+        margin-left: 0;
+    }
+
+    .margin {
+        max-width: none;
+        padding-top: 2vh;
+    }
+
+    /* на узком экране рисункам на полях негде стоять — остаются только крылья в шапке */
+    .deco-stars-top,
+    .deco-sparkle,
+    .deco-stars3,
+    .deco-chain,
+    .deco-sword {
+        display: none;
+    }
+
+    .key {
+        font-size: 11vw;
+    }
+
+    .tape-end {
+        height: auto;
+        margin-top: 12vh;
+    }
+
+    .five,
+    .chibi {
+        position: static;
+        display: block;
+    }
+
+    .five {
+        width: 100%;
+    }
+
+    .chibi {
+        width: 52vw;
+        margin: 4vh 0 0 auto;
     }
 }
