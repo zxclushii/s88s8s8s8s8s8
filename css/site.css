@@ -131,17 +131,18 @@ body:not([data-screen="mp3"]) .mp3 {
     margin: 0;
 }
 
-/* на компьютере «ну почему..» справа от lushii, на телефоне — под ним */
-.wordmark-tall {
-    display: none;
-}
-
 .wordmark {
     display: block;
     width: 100%;
     height: auto;
     overflow: visible;
     fill: var(--white);
+}
+
+/* на компьютере «ну почему..» справа от lushii, на телефоне — под ним.
+   Стоит ниже .wordmark: специфичность та же, и display: block оттуда перебил бы это. */
+.wordmark-tall {
+    display: none;
 }
 
 /* «ну почему..» стоит на базовой линии lushii; кегль — в единицах надписи */
