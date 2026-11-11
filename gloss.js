@@ -1,4 +1,4 @@
-// Глянцевые кнопки и папки в духе Vista/Aero — как папки на monotonousreign.neocities.org.
+// Глянцевые кнопки в духе Vista/Aero — как на monotonousreign.neocities.org.
 // Всё рисуется из JS как SVG: векторное, чёткое на любом экране, без картинок.
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -138,47 +138,4 @@ export function glossyOrb(size) {
             pause.style.display = isPlaying ? "" : "none";
         },
     };
-}
-
-// Папка на сетке 64×52 — как папки Vista на monotonousreign: сзади корешок с язычком,
-// спереди стенка, верх которой срезан пологой дугой блика.
-const FOLDER_BACK = "M3 9 Q3 5 7 5 H21.5 Q23.6 5 24.9 6.7 L27.2 9.8 Q28 10.8 29.4 10.8 H57 Q61 10.8 61 14.8 V20 H3 Z";
-const FOLDER_FRONT = "M3 18 Q3 15 6 15 H58 Q61 15 61 18 V45 Q61 49 57 49 H7 Q3 49 3 45 Z";
-const FOLDER_RIM = "M4.2 18 Q4.2 16.2 6 16.2 H58 Q59.8 16.2 59.8 18 V45 Q59.8 47.8 57 47.8 H7 Q4.2 47.8 4.2 45 Z";
-const FOLDER_SHINE = "M3 15 H61 V26 Q34 38 3 30.5 Z";
-
-const FOLDER_TONES = {
-    // чёрный глянец — как кнопки плеера
-    black: {
-        back: [[0, "#5a5a5a"], [1, "#101010"]],
-        body: [[0, "#4a4a4a"], [0.5, "#161616"], [0.56, "#020202"], [1, "#2a2a2a"]],
-        shine: [[0, "#fff", 0.62], [1, "#fff", 0.08]],
-        rimOpacity: 0.28,
-    },
-    // серебристо-белый — как значок в главной кнопке
-    white: {
-        back: [[0, "#f2f2f2"], [1, "#9c9c9c"]],
-        body: [[0, "#d6d6d6"], [0.5, "#bdbdbd"], [0.56, "#a4a4a4"], [1, "#e6e6e6"]],
-        shine: [[0, "#fff", 1], [1, "#fff", 0.72]],
-        rimOpacity: 0.95,
-    },
-};
-
-/** Глянцевая папка; tone: "black" или "white". Размер задаёт CSS: ширина — любая, высота — по сетке. */
-export function glossyFolder(tone) {
-    const id = `folder${++nextId}`;
-    const look = FOLDER_TONES[tone];
-    return svg("svg", { viewBox: "0 0 64 52", "aria-hidden": "true", overflow: "visible" }, [
-        svg("defs", {}, [
-            verticalGradient(`${id}-back`, 5, 20, look.back),
-            verticalGradient(`${id}-body`, 15, 49, look.body),
-            verticalGradient(`${id}-shine`, 15, 37, look.shine),
-            svg("clipPath", { id: `${id}-front` }, [svg("path", { d: FOLDER_FRONT })]),
-        ]),
-        svg("path", { d: FOLDER_BACK, fill: `url(#${id}-back)`, stroke: "#000", "stroke-width": 1, "stroke-linejoin": "round" }),
-        svg("path", { d: FOLDER_FRONT, fill: `url(#${id}-body)`, stroke: "#000", "stroke-width": 1 }),
-        svg("path", { d: FOLDER_SHINE, fill: `url(#${id}-shine)`, "clip-path": `url(#${id}-front)` }),
-        // тонкий светлый кант внутри контура, как у главной кнопки
-        svg("path", { d: FOLDER_RIM, fill: "none", stroke: "#fff", "stroke-opacity": look.rimOpacity, "stroke-width": 0.8 }),
-    ]);
 }
