@@ -131,6 +131,11 @@ body:not([data-screen="mp3"]) .mp3 {
     margin: 0;
 }
 
+/* на компьютере «ну почему..» справа от lushii, на телефоне — под ним */
+.wordmark-tall {
+    display: none;
+}
+
 .wordmark {
     display: block;
     width: 100%;
@@ -385,6 +390,17 @@ body:not([data-screen="mp3"]) .mp3 {
 .track:focus-visible {
     outline: 1px solid var(--white-2);
     outline-offset: -1px;
+}
+
+/* обложка и панель вместе — «дека»; на компьютере её как бы нет, на телефоне она раскрывается поверх экрана */
+.deck {
+    display: contents;
+}
+
+.deck-close,
+.dock,
+.now-star {
+    display: none;
 }
 
 .stage {
@@ -806,4 +822,400 @@ body:not([data-screen="mp3"]) .mp3 {
 .term-input::placeholder {
     color: var(--grey);
     opacity: 1;
+}
+
+/* телефон: главная — колонкой, mp3 — список и мини-плеер, по тапу — плеер во весь экран */
+
+@media (max-width: 760px) {
+    :root {
+        --gut: 6vw;
+        --term-font: 14px;
+        --term-bottom: 12px;
+    }
+
+    .term-name {
+        margin-bottom: 8px;
+        font-size: 13px;
+    }
+
+    .term-box {
+        padding: 12px 14px;
+    }
+
+    /* в mp3 место занимает плеер: у терминала нет подписи и видна одна строка ответа */
+    body[data-screen="mp3"] .term-name {
+        display: none;
+    }
+
+    body[data-screen="mp3"] .term-log {
+        max-height: 1.6em;
+    }
+
+    .home {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        /* снизу — место под терминал с подписью и тремя строками ответа */
+        padding: 5vh 0 calc(var(--term-bottom) + 24px + 24px + 6.4 * var(--term-font) + 2vh);
+    }
+
+    .title,
+    .meme,
+    .folders {
+        position: static;
+    }
+
+    .title {
+        flex: none;
+        width: 76vw;
+        margin-left: var(--gut);
+    }
+
+    .wordmark-wide {
+        display: none;
+    }
+
+    .wordmark-tall {
+        display: block;
+    }
+
+    .meme {
+        flex: none;
+        width: 46vw;
+        margin: 2.5vh var(--gut) 0 auto;
+    }
+
+    .folders {
+        flex: none;
+        gap: 9vw;
+        margin-top: 3vh;
+        padding: 0 var(--gut);
+    }
+
+    .folder {
+        width: 24vw;
+    }
+
+    .mp3 {
+        display: flex;
+        flex-direction: column;
+        padding: 3vh 0 calc(var(--term-bottom) + 24px + 3.2 * var(--term-font) + 10px);
+    }
+
+    /* плейлистов может быть много — ряд папок листается вбок */
+    .folders-small {
+        flex: none;
+        gap: 18px;
+        padding: 0 var(--gut);
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .folders-small li {
+        flex: none;
+    }
+
+    .folders-small .folder {
+        width: max(56px, 15vw);
+    }
+
+    .playlist {
+        position: static;
+        flex: 1;
+        width: auto;
+        min-height: 0;
+        margin-top: 3vh;
+        padding: 0 var(--gut);
+    }
+
+    .playlist-head {
+        font-size: 40px;
+    }
+
+    .track {
+        padding: 10px 8px;
+    }
+
+    .track:active {
+        background: var(--s1);
+    }
+
+    .track-title {
+        font-size: 16px;
+    }
+
+    .track-artist {
+        font-size: 13px;
+    }
+
+    /* мини-плеер */
+    .dock {
+        position: relative;
+        display: flex;
+        flex: none;
+        gap: 6px;
+        align-items: center;
+        margin: 10px var(--gut) 0;
+        padding: 10px 8px 10px 12px;
+        background: var(--s1);
+    }
+
+    .mp3:not(.has-track) .dock {
+        display: none;
+    }
+
+    .dock-progress {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: var(--progress, 0%);
+        height: 2px;
+        background: var(--white);
+    }
+
+    .dock-open {
+        display: flex;
+        flex: 1;
+        gap: 12px;
+        align-items: center;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .dock-cover {
+        flex: none;
+        width: 44px;
+        height: 44px;
+        background: var(--s2);
+    }
+
+    .dock-cover img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .dock-cover img[hidden] {
+        display: none;
+    }
+
+    .dock-text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .dock-title,
+    .dock-artist {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .dock-title {
+        color: var(--white);
+        font: 400 16px/1.25 var(--sans);
+    }
+
+    .dock-artist {
+        color: var(--grey);
+        font: 400 13px/1.3 var(--sans);
+    }
+
+    .btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    .dock .btn-play {
+        width: 40px;
+        height: 40px;
+        margin: 0;
+    }
+
+    .dock .btn-play svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* дека во весь экран */
+    .mp3:not(.expanded) .deck {
+        display: none;
+    }
+
+    /* экран с фиксированным положением — свой слой, и дека внутри не поднимется выше терминала: поднимаем весь экран */
+    .mp3.expanded {
+        z-index: 3;
+    }
+
+    .mp3.expanded .deck {
+        position: fixed;
+        inset: 0;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden auto;
+        padding: 1.5vh var(--gut) 4vh;
+        background: var(--ink);
+    }
+
+    .mp3.expanded .deck-close {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 56px;
+        height: 36px;
+        margin: 0 auto 1.5vh;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--white-2);
+        cursor: pointer;
+    }
+
+    .deck-close svg {
+        width: 26px;
+        height: 26px;
+    }
+
+    .mp3.expanded .stage {
+        position: relative;
+        top: auto;
+        left: auto;
+        flex: none;
+        /* обложка забирает то, что осталось от экрана после стрелки, названия и кнопок (~310px) */
+        width: min(84vw, calc(100vh - 310px));
+        width: min(84vw, calc(100dvh - 310px));
+        height: auto;
+        margin: 0 auto;
+    }
+
+    .mp3.expanded .cover,
+    .mp3.expanded .cover-empty {
+        height: auto;
+        aspect-ratio: 1;
+    }
+
+    .mp3.expanded .glow {
+        filter: blur(46px) saturate(1.2);
+    }
+
+    /* название под обложкой, звезда — справа от него */
+    .mp3.expanded .now {
+        position: static;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        width: auto;
+        margin-top: 4vh;
+    }
+
+    .now-text {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .mp3.expanded .now-title {
+        font-size: 24px;
+        -webkit-line-clamp: 1;
+        line-clamp: 1;
+    }
+
+    .mp3.expanded .now-artist {
+        margin-top: 6px;
+        font-size: 14px;
+    }
+
+    .mp3.expanded .now-star {
+        display: block;
+        flex: none;
+        width: 22px;
+        height: 22px;
+        fill: var(--white);
+    }
+
+    .mp3.expanded .bar {
+        position: static;
+        display: grid;
+        flex: none;
+        grid-template-areas:
+            "seek seek seek seek seek"
+            "now . . . total"
+            "shuffle prev play next repeat";
+        grid-template-columns: repeat(5, 1fr);
+        /* зазор между кнопками даёт сетка; 26px от панели компьютера здесь вытолкнули бы кнопки за экран */
+        gap: 10px 0;
+        justify-items: center;
+        width: min(84vw, 100%);
+        height: auto;
+        margin: 3vh auto 0;
+        padding: 0;
+        background: none;
+    }
+
+    .mp3.expanded .seek {
+        grid-area: seek;
+        width: 100%;
+    }
+
+    #time-now {
+        grid-area: now;
+        justify-self: start;
+        min-width: 0;
+    }
+
+    #time-total {
+        grid-area: total;
+        justify-self: end;
+        min-width: 0;
+    }
+
+    #btn-shuffle {
+        grid-area: shuffle;
+    }
+
+    #btn-prev {
+        grid-area: prev;
+    }
+
+    #btn-play {
+        grid-area: play;
+    }
+
+    #btn-next {
+        grid-area: next;
+    }
+
+    #btn-repeat {
+        grid-area: repeat;
+    }
+
+    .mp3.expanded #btn-play {
+        width: 64px;
+        height: 64px;
+        margin: 0;
+    }
+
+    .mp3.expanded #btn-play svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    /* звезда переехала к названию; включённые кнопки видно по белому цвету */
+    .btn-toggle .mark {
+        display: none;
+    }
+
+    /* громкость на телефоне — кнопками сбоку */
+    #btn-mute,
+    .range.volume {
+        display: none;
+    }
 }

@@ -37,6 +37,21 @@ export function shuffledOrder(length, first, random = Math.random) {
     return [first, ...rest];
 }
 
+/**
+ * Позиция трека для экрана блокировки. Пустой объект сбрасывает её — пока длина неизвестна.
+ * setPositionState бросает TypeError, если позиция за концом трека или скорость 0, — такое сюда не попадёт.
+ * @param {number} position
+ * @param {number} duration
+ * @param {number} playbackRate
+ * @returns {MediaPositionState}
+ */
+export function positionState(position, duration, playbackRate) {
+    if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(playbackRate) || playbackRate === 0) {
+        return {};
+    }
+    return { duration, playbackRate, position: Math.min(Math.max(position, 0), duration) };
+}
+
 /** На iPhone и iPad громкость сайту не подвластна: audio.volume там не записывается. */
 function canControlVolume() {
     const probe = document.createElement("audio");
@@ -75,6 +90,9 @@ export function mountPlayer({ onPlaylists }) {
     if (volumeControl) {
         audio.volume = loadVolume();
     }
+    // Экран блокировки и шторка уведомлений: название, обложка, кнопки. Есть в Safari на iPhone с iOS 15
+    // и в Chrome на Android; где нет — плеер просто работает без них.
+    const session = "mediaSession" in navigator ? navigator.mediaSession : null;
 
     /** @type {Playlist[] | null} null — ещё не загрузились или не вышло */
     let playlists = null;
@@ -145,9 +163,25 @@ export function mountPlayer({ onPlaylists }) {
         const tracks = queueTracks();
         position = (newPosition + order.length) % order.length;
         const index = order[position];
-        audio.src = tracks[index].src;
-        view.showTrack(tracks[index], index + 1, tracks.length);
+        const track = tracks[index];
+        audio.src = track.src;
+        view.showTrack(track, index + 1, tracks.length);
         view.setActive(activeInViewed());
+        if (session) {
+            session.metadata = new MediaMetadata({
+                title: track.title,
+                artist: track.artist,
+                album: playlists?.[queue]?.name ?? "",
+                // ссылка полная: относительную телефон может искать не там
+                artwork: track.cover ? [{ src: new URL(track.cover, document.baseURI).href, type: "image/jpeg" }] : [],
+            });
+        }
+    }
+
+    function updatePosition() {
+        if (session && typeof session.setPositionState === "function") {
+            session.setPositionState(positionState(audio.currentTime, audio.duration, audio.playbackRate));
+        }
     }
 
     async function play() {
@@ -231,8 +265,22 @@ export function mountPlayer({ onPlaylists }) {
     }
 
     // Кнопка и свечение следуют за настоящим состоянием аудио, а не за кликами.
-    audio.addEventListener("play", () => view.showPlaying(true));
-    audio.addEventListener("pause", () => view.showPlaying(false));
+    audio.addEventListener("play", () => {
+        view.showPlaying(true);
+        if (session) {
+            session.playbackState = "playing";
+        }
+    });
+    audio.addEventListener("pause", () => {
+        view.showPlaying(false);
+        if (session) {
+            session.playbackState = "paused";
+        }
+    });
+    // полоску на экране блокировки двигает сам телефон, ему нужна позиция только при скачках
+    for (const type of ["durationchange", "seeked", "ratechange", "play", "pause"]) {
+        audio.addEventListener(type, updatePosition);
+    }
     audio.addEventListener("timeupdate", () => view.showTime(audio.currentTime, audio.duration));
     audio.addEventListener("durationchange", () => view.showTime(audio.currentTime, audio.duration));
     audio.addEventListener("volumechange", () => view.showVolume(audio.volume, audio.muted));
@@ -288,6 +336,39 @@ export function mountPlayer({ onPlaylists }) {
         renderViewed();
         // сайт перечитает адрес и покажет нужный плейлист через show
         onPlaylists(loaded);
+    }
+
+    if (session) {
+        /** @type {[MediaSessionAction, MediaSessionActionHandler][]} */
+        const actions = [
+            [
+                "play",
+                () => {
+                    if (order.length > 0) {
+                        void play();
+                    }
+                },
+            ],
+            ["pause", () => audio.pause()],
+            ["previoustrack", previous],
+            ["nexttrack", () => step(1)],
+            [
+                "seekto",
+                (details) => {
+                    if (details.seekTime !== undefined && order.length > 0) {
+                        audio.currentTime = details.seekTime;
+                        updatePosition();
+                    }
+                },
+            ],
+        ];
+        for (const [action, handler] of actions) {
+            try {
+                session.setActionHandler(action, handler);
+            } catch {
+                // браузер не знает это действие (старые Safari без seekto) — этой кнопки на экране блокировки не будет
+            }
+        }
     }
 
     view.showVolume(audio.volume, audio.muted);

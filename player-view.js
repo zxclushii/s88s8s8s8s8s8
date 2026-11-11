@@ -123,12 +123,41 @@ export function createPlayerView(handlers, { volumeControl }) {
     const volume = byId("volume", HTMLInputElement);
     const timeNow = byId("time-now", HTMLElement);
     const timeTotal = byId("time-total", HTMLElement);
+    // мини-плеер на телефоне
+    const dock = byId("dock", HTMLElement);
+    const dockCover = byId("dock-cover", HTMLImageElement);
+    const dockTitle = byId("dock-title", HTMLElement);
+    const dockArtist = byId("dock-artist", HTMLElement);
+    const dockPlay = byId("dock-play", HTMLButtonElement);
+    const deckClose = byId("deck-close", HTMLButtonElement);
 
     let duration = 0;
     // пока тянут ползунок, время показывает, куда перемотаем, а сам он не прыгает за музыкой
     let seeking = false;
 
     play.addEventListener("click", () => handlers.onPlayPause());
+    dockPlay.addEventListener("click", () => handlers.onPlayPause());
+    byId("dock-next", HTMLButtonElement).addEventListener("click", () => handlers.onNext());
+
+    // Раскрытая дека — отдельная запись в истории: «назад» на телефоне сворачивает её, а не уводит с mp3.
+    byId("dock-open", HTMLButtonElement).addEventListener("click", () => {
+        history.pushState({ deck: true }, "", location.href);
+        screen.classList.add("expanded");
+        deckClose.focus();
+    });
+    deckClose.addEventListener("click", () => {
+        if (history.state?.deck) {
+            history.back();
+        } else {
+            screen.classList.remove("expanded");
+        }
+    });
+    window.addEventListener("popstate", (event) => {
+        if (!event.state?.deck) {
+            screen.classList.remove("expanded");
+        }
+    });
+
     byId("btn-prev", HTMLButtonElement).addEventListener("click", () => handlers.onPrevious());
     byId("btn-next", HTMLButtonElement).addEventListener("click", () => handlers.onNext());
     shuffle.addEventListener("click", () => handlers.onShuffle());
@@ -168,9 +197,10 @@ export function createPlayerView(handlers, { volumeControl }) {
     /** @param {string | null} url */
     function showCover(url) {
         cover.hidden = url === null;
+        dockCover.hidden = url === null;
         // у svg нет свойства hidden — только атрибут, его и прячет CSS
         coverEmpty.toggleAttribute("hidden", url !== null);
-        for (const image of [cover, ...glows]) {
+        for (const image of [cover, dockCover, ...glows]) {
             if (url === null) {
                 image.removeAttribute("src");
             } else if (image.getAttribute("src") !== url) {
@@ -204,6 +234,7 @@ export function createPlayerView(handlers, { volumeControl }) {
             paintRange(seek);
             timeNow.textContent = formatTime(time);
         }
+        dock.style.setProperty("--progress", `${duration > 0 ? Math.min(100, (time / duration) * 100) : 0}%`);
     }
 
     return {
@@ -244,18 +275,25 @@ export function createPlayerView(handlers, { volumeControl }) {
             title.title = track?.title ?? "";
             const where = `${number} из ${total}`;
             artist.textContent = track === null ? "" : track.artist ? `${track.artist} · ${where}` : where;
+            dockTitle.textContent = title.textContent;
+            dockArtist.textContent = artist.textContent;
+            // нечего играть — мини-плеера на телефоне нет
+            screen.classList.toggle("has-track", track !== null);
             showTime(0, NaN);
         },
 
         /** Пометка вместо артиста: «не загрузился». */
         showTrackNote(/** @type {string} */ text) {
             artist.textContent = text;
+            dockArtist.textContent = text;
         },
 
         /** Свечение переливается, только пока играет. */
         showPlaying(/** @type {boolean} */ playing) {
             screen.classList.toggle("playing", playing);
-            play.setAttribute("aria-label", playing ? "Пауза" : "Играть");
+            for (const button of [play, dockPlay]) {
+                button.setAttribute("aria-label", playing ? "Пауза" : "Играть");
+            }
         },
 
         /**

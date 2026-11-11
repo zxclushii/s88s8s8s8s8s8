@@ -29,9 +29,23 @@
 
         <main class="home" id="home">
             <h1 class="title">
-                <svg class="wordmark" viewBox="-130 -1100 4130 1330" role="img" aria-label="lushii ну почему..">
+                <svg
+                    class="wordmark wordmark-wide"
+                    viewBox="-130 -1100 4130 1330"
+                    role="img"
+                    aria-label="lushii ну почему.."
+                >
                     <use href="img/lushii.svg#lushii" />
                     <text class="sigh" x="2440" y="0">ну почему..</text>
+                </svg>
+                <svg
+                    class="wordmark wordmark-tall"
+                    viewBox="-130 -1100 2520 1830"
+                    role="img"
+                    aria-label="lushii ну почему.."
+                >
+                    <use href="img/lushii.svg#lushii" />
+                    <text class="sigh" x="-20" y="590">ну почему..</text>
                 </svg>
             </h1>
             <figure class="meme">
@@ -57,27 +71,113 @@
                 <ol class="playlist-tracks" id="playlist-tracks"></ol>
             </section>
 
-            <div class="stage">
-                <div class="glow" aria-hidden="true">
-                    <img id="glow-a" alt="" />
-                    <img id="glow-b" alt="" />
+            <div class="deck" id="deck">
+                <button class="deck-close" id="deck-close" type="button" aria-label="Свернуть плеер">
+                    <svg class="icon-line" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                </button>
+                <div class="stage">
+                    <div class="glow" aria-hidden="true">
+                        <img id="glow-a" alt="" />
+                        <img id="glow-b" alt="" />
+                    </div>
+                    <img class="cover" id="cover" alt="" hidden />
+                    <svg class="cover-empty" id="cover-empty" aria-hidden="true"><use href="#star" /></svg>
+                    <div class="now" aria-live="polite">
+                        <div class="now-text">
+                            <p class="now-title" id="now-title"></p>
+                            <p class="now-artist" id="now-artist"></p>
+                        </div>
+                        <svg class="now-star" aria-hidden="true"><use href="#star" /></svg>
+                    </div>
                 </div>
-                <img class="cover" id="cover" alt="" hidden />
-                <svg class="cover-empty" id="cover-empty" aria-hidden="true"><use href="#star" /></svg>
-                <div class="now" aria-live="polite">
-                    <p class="now-title" id="now-title"></p>
-                    <p class="now-artist" id="now-artist"></p>
+
+                <div class="bar" role="group" aria-label="Управление плеером">
+                    <button class="btn" id="btn-prev" type="button" aria-label="Предыдущий трек">
+                        <svg class="icon-fill" viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="5" y="6" width="2" height="12" rx=".5" />
+                            <path d="M19 6.5v11a.6.6 0 0 1-.9.5L8.8 12.5a.6.6 0 0 1 0-1L18.1 6a.6.6 0 0 1 .9.5z" />
+                        </svg>
+                    </button>
+                    <button class="btn btn-play" id="btn-play" type="button" aria-label="Играть">
+                        <svg class="icon-fill icon-play" viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                                d="M7 4.8v14.4a.8.8 0 0 0 1.2.7l11.6-7.2a.8.8 0 0 0 0-1.4L8.2 4.1A.8.8 0 0 0 7 4.8z"
+                            />
+                        </svg>
+                        <svg class="icon-fill icon-pause" viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="6.5" y="5" width="3.6" height="14" rx=".8" />
+                            <rect x="13.9" y="5" width="3.6" height="14" rx=".8" />
+                        </svg>
+                    </button>
+                    <button class="btn" id="btn-next" type="button" aria-label="Следующий трек">
+                        <svg class="icon-fill" viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="17" y="6" width="2" height="12" rx=".5" />
+                            <path d="M5 6.5v11a.6.6 0 0 0 .9.5l9.3-5.5a.6.6 0 0 0 0-1L5.9 6a.6.6 0 0 0-.9.5z" />
+                        </svg>
+                    </button>
+
+                    <span class="time" id="time-now">0:00</span>
+                    <input
+                        class="range seek"
+                        id="seek"
+                        type="range"
+                        min="0"
+                        max="1000"
+                        value="0"
+                        aria-label="Перемотка"
+                    />
+                    <span class="time" id="time-total">0:00</span>
+
+                    <button
+                        class="btn btn-toggle"
+                        id="btn-shuffle"
+                        type="button"
+                        aria-label="Перемешать"
+                        aria-pressed="false"
+                    >
+                        <svg class="icon-line" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M16 4h4v4M4 20 20 4M20 16v4h-4M14.5 14.5 20 20M4 4l5 5" />
+                        </svg>
+                        <svg class="mark" aria-hidden="true"><use href="#star" /></svg>
+                    </button>
+                    <button class="btn btn-toggle" id="btn-repeat" type="button" aria-label="Повтор: выключен">
+                        <svg class="icon-line" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M17 2l3 3-3 3M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3M20 13v2a4 4 0 0 1-4 4H4" />
+                            <text class="repeat-one" x="12" y="15.1" text-anchor="middle">1</text>
+                        </svg>
+                        <svg class="mark" aria-hidden="true"><use href="#star" /></svg>
+                    </button>
+                    <button class="btn" id="btn-mute" type="button" aria-label="Выключить звук">
+                        <svg class="icon-line" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M11 5 6 9H3v6h3l5 4V5z" />
+                            <path class="vol-low" d="M15.5 8.5a5 5 0 0 1 0 7" />
+                            <path class="vol-high" d="M18.5 5.5a9 9 0 0 1 0 13" />
+                            <path class="vol-mute" d="M16 9l5 6M21 9l-5 6" />
+                        </svg>
+                    </button>
+                    <input
+                        class="range volume"
+                        id="volume"
+                        type="range"
+                        min="0"
+                        max="100"
+                        value="100"
+                        aria-label="Громкость"
+                    />
                 </div>
             </div>
 
-            <div class="bar" role="group" aria-label="Управление плеером">
-                <button class="btn" id="btn-prev" type="button" aria-label="Предыдущий трек">
-                    <svg class="icon-fill" viewBox="0 0 24 24" aria-hidden="true">
-                        <rect x="5" y="6" width="2" height="12" rx=".5" />
-                        <path d="M19 6.5v11a.6.6 0 0 1-.9.5L8.8 12.5a.6.6 0 0 1 0-1L18.1 6a.6.6 0 0 1 .9.5z" />
-                    </svg>
+            <!-- мини-плеер на телефоне: тап по нему раскрывает деку -->
+            <div class="dock" id="dock">
+                <span class="dock-progress" aria-hidden="true"></span>
+                <button class="dock-open" id="dock-open" type="button" aria-label="Открыть плеер">
+                    <span class="dock-cover"><img id="dock-cover" alt="" hidden /></span>
+                    <span class="dock-text">
+                        <span class="dock-title" id="dock-title"></span>
+                        <span class="dock-artist" id="dock-artist"></span>
+                    </span>
                 </button>
-                <button class="btn btn-play" id="btn-play" type="button" aria-label="Играть">
+                <button class="btn btn-play dock-play" id="dock-play" type="button" aria-label="Играть">
                     <svg class="icon-fill icon-play" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M7 4.8v14.4a.8.8 0 0 0 1.2.7l11.6-7.2a.8.8 0 0 0 0-1.4L8.2 4.1A.8.8 0 0 0 7 4.8z" />
                     </svg>
@@ -86,53 +186,12 @@
                         <rect x="13.9" y="5" width="3.6" height="14" rx=".8" />
                     </svg>
                 </button>
-                <button class="btn" id="btn-next" type="button" aria-label="Следующий трек">
+                <button class="btn" id="dock-next" type="button" aria-label="Следующий трек">
                     <svg class="icon-fill" viewBox="0 0 24 24" aria-hidden="true">
                         <rect x="17" y="6" width="2" height="12" rx=".5" />
                         <path d="M5 6.5v11a.6.6 0 0 0 .9.5l9.3-5.5a.6.6 0 0 0 0-1L5.9 6a.6.6 0 0 0-.9.5z" />
                     </svg>
                 </button>
-
-                <span class="time" id="time-now">0:00</span>
-                <input class="range seek" id="seek" type="range" min="0" max="1000" value="0" aria-label="Перемотка" />
-                <span class="time" id="time-total">0:00</span>
-
-                <button
-                    class="btn btn-toggle"
-                    id="btn-shuffle"
-                    type="button"
-                    aria-label="Перемешать"
-                    aria-pressed="false"
-                >
-                    <svg class="icon-line" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M16 4h4v4M4 20 20 4M20 16v4h-4M14.5 14.5 20 20M4 4l5 5" />
-                    </svg>
-                    <svg class="mark" aria-hidden="true"><use href="#star" /></svg>
-                </button>
-                <button class="btn btn-toggle" id="btn-repeat" type="button" aria-label="Повтор: выключен">
-                    <svg class="icon-line" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M17 2l3 3-3 3M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3M20 13v2a4 4 0 0 1-4 4H4" />
-                        <text class="repeat-one" x="12" y="15.1" text-anchor="middle">1</text>
-                    </svg>
-                    <svg class="mark" aria-hidden="true"><use href="#star" /></svg>
-                </button>
-                <button class="btn" id="btn-mute" type="button" aria-label="Выключить звук">
-                    <svg class="icon-line" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M11 5 6 9H3v6h3l5 4V5z" />
-                        <path class="vol-low" d="M15.5 8.5a5 5 0 0 1 0 7" />
-                        <path class="vol-high" d="M18.5 5.5a9 9 0 0 1 0 13" />
-                        <path class="vol-mute" d="M16 9l5 6M21 9l-5 6" />
-                    </svg>
-                </button>
-                <input
-                    class="range volume"
-                    id="volume"
-                    type="range"
-                    min="0"
-                    max="100"
-                    value="100"
-                    aria-label="Громкость"
-                />
             </div>
         </section>
 
