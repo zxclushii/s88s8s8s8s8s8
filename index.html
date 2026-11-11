@@ -1,14 +1,68 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Плеер</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@600&family=M+PLUS+1+Code:wght@400;700&family=Noto+Sans+Mono:wght@400;700&display=swap">
-    <!-- всю страницу строит и рисует JS: site.js → desktop.js и glass.js (фон, папки) и player.js → ui.js, gloss.js, tracks.js -->
-    <script type="module" src="site.js"></script>
-</head>
-<body></body>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>lushii</title>
+        <meta name="description" content="lushii ну почему.." />
+        <meta name="theme-color" content="#0a0a0a" />
+        <link
+            rel="preload"
+            href="fonts/CormorantGaramond-400i-cyrillic.woff2"
+            as="font"
+            type="font/woff2"
+            crossorigin
+        />
+        <link rel="preload" href="fonts/IBMPlexMono-400.woff2" as="font" type="font/woff2" crossorigin />
+        <link rel="stylesheet" href="css/site.css" />
+        <!-- шрифты старого плеера; уйдут вместе с ним, когда переделаем mp3 -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=M+PLUS+1+Code:wght@400;700&family=Noto+Sans+Mono:wght@400;700&display=swap"
+        />
+        <script type="module" src="site.js"></script>
+    </head>
+    <body data-screen="home">
+        <main class="home" id="home">
+            <h1 class="title">
+                <svg class="wordmark" viewBox="-130 -1100 4130 1330" role="img" aria-label="lushii ну почему..">
+                    <use href="img/lushii.svg#lushii" />
+                    <text class="sigh" x="2440" y="0">ну почему..</text>
+                </svg>
+            </h1>
+            <figure class="meme">
+                <img
+                    src="img/meme.webp"
+                    width="735"
+                    height="524"
+                    alt="Мем: «меня (огненный демон) заводит больше, чем голая женщина»"
+                />
+            </figure>
+            <ul class="folders" id="folders" aria-label="Папки"></ul>
+        </main>
+
+        <div class="player-frame" id="player-frame"></div>
+
+        <section class="term" aria-label="angel terminal">
+            <label class="term-name" for="term-input">angel terminal</label>
+            <div class="term-box" id="term-box">
+                <div class="term-log" id="term-log" role="log"></div>
+                <form class="term-line" id="term-form" autocomplete="off">
+                    <span class="term-prompt" id="term-prompt">SS:\angel&gt;</span>
+                    <input
+                        class="term-input"
+                        id="term-input"
+                        name="command"
+                        type="text"
+                        autocapitalize="off"
+                        spellcheck="false"
+                        enterkeyhint="go"
+                        placeholder="seen this angel?"
+                    />
+                </form>
+            </div>
+        </section>
+    </body>
 </html>

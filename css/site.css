@@ -1,0 +1,310 @@
+/* Главная и терминал. Старый плеер (экран mp3) пока рисует себя сам из ui.js. */
+
+@font-face {
+    font-family: "Cormorant Garamond";
+    src: url("../fonts/CormorantGaramond-400i.woff2") format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+    unicode-range:
+        U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+        U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: "Cormorant Garamond";
+    src: url("../fonts/CormorantGaramond-400i-cyrillic.woff2") format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("../fonts/IBMPlexMono-400.woff2") format("woff2");
+    font-weight: 400;
+    font-display: swap;
+    unicode-range:
+        U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+        U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("../fonts/IBMPlexMono-400-cyrillic.woff2") format("woff2");
+    font-weight: 400;
+    font-display: swap;
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+:root {
+    /* фон и матовые плашки: 000000 пока в запасе */
+    --ink: #0a0a0a;
+    --s1: #141414;
+    --s2: #1f1f1f;
+    --s3: #292929;
+    /* белый не чистый, чуть тёплый, как бумага; серые — тот же белый, смешанный с фоном */
+    --white: #e8e6e1;
+    --white-2: #b7b6b2;
+    --grey: #84837f;
+
+    --serif: "Cormorant Garamond", "Times New Roman", serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Courier New", monospace;
+    --sans: Arial, Helvetica, sans-serif;
+
+    --gut: 7.6vw;
+    /* терминал: кегль, отступ от низа и полная высота — подпись, поля и четыре строки (три ответа и ввод) */
+    --term-font: clamp(15px, 0.92vw, 18px);
+    --term-bottom: 7.5vh;
+    --term-full: calc(28px + 35px + 6.4 * var(--term-font));
+    /* всё, что стоит над терминалом, держится выше его полной высоты: он растёт вверх и не налезает */
+    --above-term: calc(var(--term-bottom) + var(--term-full) + 4vh);
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    background: var(--ink);
+    color-scheme: dark;
+}
+
+body {
+    height: 100vh;
+    height: 100dvh;
+    margin: 0;
+    overflow: hidden;
+    background: var(--ink);
+    color: var(--white);
+    font: 400 16px/1.4 var(--sans);
+    -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+    background: var(--white);
+    color: var(--ink);
+}
+
+/* главная */
+
+.home {
+    position: fixed;
+    inset: 0;
+    transition:
+        opacity 0.4s ease-in-out,
+        visibility 0.4s;
+}
+
+body:not([data-screen="home"]) .home {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.title {
+    position: absolute;
+    top: 8vh;
+    left: var(--gut);
+    /* по высоте экрана тоже: на низком ноутбуке хвост надписи не наезжает на папки */
+    width: min(62vw, 105vh);
+    margin: 0;
+}
+
+.wordmark {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    fill: var(--white);
+}
+
+/* «ну почему..» стоит на базовой линии lushii; кегль — в единицах надписи */
+.sigh {
+    font: italic 400 360px var(--serif);
+    fill: var(--white-2);
+}
+
+.meme {
+    position: absolute;
+    top: 4vh;
+    right: 7vw;
+    width: 21vw;
+    margin: 0;
+}
+
+.meme img {
+    display: block;
+    width: 100%;
+    height: auto;
+    /* цветной, но чуть притушен, чтобы белый мема не светил ярче надписи */
+    filter: contrast(1.04) brightness(0.9);
+}
+
+.folders {
+    position: absolute;
+    bottom: var(--above-term);
+    left: var(--gut);
+    display: flex;
+    gap: 3.6vw;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.folder {
+    display: block;
+    width: clamp(96px, 7.4vw, 160px);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--white-2);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.folder svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.folder-back {
+    fill: var(--s1);
+    transition: fill 0.2s;
+}
+
+.folder-front {
+    fill: var(--s2);
+    transition: fill 0.2s;
+}
+
+.folder-star {
+    fill: var(--white);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.folder-name {
+    display: block;
+    margin-top: 11px;
+    font: 400 15px/1.2 var(--sans);
+    transition: color 0.2s;
+}
+
+/* наведение — только там, где есть мышь: на тачскрине подсветка залипла бы после тапа */
+@media (hover: hover) {
+    .folder:hover .folder-back {
+        fill: var(--s2);
+    }
+    .folder:hover .folder-front {
+        fill: var(--s3);
+    }
+    .folder:hover .folder-star {
+        opacity: 1;
+    }
+    .folder:hover .folder-name {
+        color: var(--white);
+    }
+}
+
+.folder:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: 7px;
+}
+
+.folder:focus-visible .folder-star {
+    opacity: 1;
+}
+
+/* экран mp3: старый плеер раскладывается внутри отступов этой рамки, снизу оставлено место под терминал */
+
+.player-frame {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    padding: 5vh var(--gut) var(--above-term);
+    pointer-events: none;
+}
+
+/* терминал — на всех экранах */
+
+.term {
+    position: fixed;
+    right: var(--gut);
+    bottom: var(--term-bottom);
+    left: var(--gut);
+    z-index: 2;
+}
+
+.term-name {
+    display: block;
+    margin: 0 0 10px;
+    color: var(--grey);
+    font: 400 15px/1.2 var(--sans);
+}
+
+.term-box {
+    padding: 17px 22px 18px;
+    background: var(--s1);
+    font: 400 var(--term-font) / 1.6 var(--mono);
+    cursor: text;
+    transition: background 0.2s;
+}
+
+.term-box:focus-within {
+    background: var(--s2);
+}
+
+/* видно три последние строки ответа: старые уезжают вверх, как в настоящем терминале */
+.term-log {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    max-height: 4.8em;
+    overflow: hidden;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.term-log:empty {
+    display: none;
+}
+
+.term-log p {
+    margin: 0;
+}
+
+.term-out {
+    color: var(--grey);
+}
+
+.term-line {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6em;
+    margin: 0;
+}
+
+.term-prompt {
+    white-space: nowrap;
+}
+
+.term-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: none;
+    color: var(--white);
+    font: inherit;
+    caret-color: var(--white);
+}
+
+.term-input::placeholder {
+    color: var(--grey);
+    opacity: 1;
+}

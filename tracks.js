@@ -89,6 +89,8 @@ function buildPlaylist(entries) {
             const coverName = fileByLowerName.get(`${baseName}.jpg`.toLowerCase());
             return {
                 ...splitTrackName(baseName),
+                // имя файла как есть — его показывает dir в терминале
+                file: file.name,
                 src: trackUrl(file.name),
                 cover: coverName ? trackUrl(coverName) : null,
             };

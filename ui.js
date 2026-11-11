@@ -1,10 +1,10 @@
 // Внешний вид плеера — всё строится и рисуется из JS. Плеер занимает весь экран, раскладок две.
 // Большой экран: слева список треков, по центру обложка, справа над ней бегущая строка,
 // внизу во всю ширину панель с кнопками (как у Spotify на компьютере).
-// Телефон: под папками стеклянный список треков с обложками, внизу маленькая панель — полоса и кнопки
+// Телефон: сверху стеклянный список треков с обложками, внизу маленькая панель — полоса и кнопки
 // (как список и мини-плеер в Spotify на телефоне). Панель стоит на месте, прокручивается только список.
 // Стеклянная панель и чёрный глянец — как на monotonousreign.neocities.org (7.css, Aero).
-// Страницу вокруг (фон, папки) строит desktop.js; плеер — окно, которое открывает папка.
+// Главную и терминал строит site.js; плеер — экран папки mp3, его открывает папка или cd mp3.
 
 import { flatGlyph, glossyGlyph, glossyOrb, repeatOneMark } from "./gloss.js";
 
@@ -751,7 +751,7 @@ function setIconSize(svgNode, size) {
 
 /**
  * Строит плеер внутри root — закрытым: его открывает setOpen(true).
- * Плеер занимает место внутри отступов root (сверху там оставлено место под папки).
+ * Плеер занимает место внутри отступов root (снизу там оставлено место под терминал).
  * handlers: onPlayPause, onPrevious, onNext, onShuffle, onRepeat, onSeek(seconds),
  * onVolume(level 0…1, final — ползунок отпустили), onMute, onSelect(номер трека в списке).
  * volumeControl: false — регулятор громкости не показываем (на iPhone громкость меняют только кнопками).
@@ -896,7 +896,7 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
     marquee.root.style.position = "absolute";
 
     // Всё окно плеера — слой на весь экран, где каждая часть стоит на своём месте, а между ними виден фон.
-    // Сам слой мышь не ловит: сквозь пустые места можно нажимать на папки.
+    // Сам слой мышь не ловит: сквозь пустые места можно нажимать на то, что под ним.
     const column = el("div", {
         position: "fixed",
         inset: "0",
@@ -945,7 +945,7 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
         if (!open) {
             return;
         }
-        // root оставляет отступы: по бокам и снизу — поля страницы, сверху — ещё и место под папки
+        // root оставляет отступы: сверху и по бокам — поля страницы, снизу — ещё и место под терминал
         const style = getComputedStyle(root);
         const pad = {
             top: parseFloat(style.paddingTop),
@@ -961,7 +961,7 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
     }
 
     /**
-     * Маленький экран (телефон): под папками стеклянный список треков, внизу — панель с кнопками.
+     * Маленький экран (телефон): сверху стеклянный список треков, внизу — панель с кнопками.
      * Панель стоит на месте, прокручивается только список внутри карточки. Большой обложки и бегущей строки нет.
      */
     function layoutCompact(pad) {
@@ -1000,7 +1000,7 @@ export function createPlayerUI(root, handlers, { volumeControl = true } = {}) {
         });
         const barTop = height - pad.bottom - tray.offsetHeight;
 
-        // обложка — по центру, между папками и панелью
+        // обложка — по центру, между верхним полем и панелью
         const coverSize = Math.max(COVER_MIN_SIZE, Math.floor(Math.min(COVER_MAX_SIZE, barTop - pad.top - BLOCK_GAP * 2)));
         const coverLeft = (width - coverSize) / 2;
         const coverTop = between(height * COVER_CENTER_Y - coverSize / 2, pad.top, barTop - BLOCK_GAP - coverSize);

@@ -43,6 +43,8 @@ if (volumeControl) {
 }
 
 let tracks = [];
+// Список треков пришёл от GitHub (пусть даже пустой); до этого и после ошибки — false.
+let loaded = false;
 // Порядок проигрывания: номера треков; при shuffle — перемешанные.
 let order = [];
 // Где мы сейчас в order.
@@ -53,7 +55,11 @@ let repeat = "off";
 // Экран плеера; появляется в mountPlayer.
 let ui;
 
-/** Строит плеер внутри root и начинает грузить плейлист. Возвращает окно: setOpen(true|false). */
+/**
+ * Строит плеер внутри root и начинает грузить плейлист.
+ * Возвращает setOpen(true|false) — показать или спрятать плеер, и files() — имена mp3 для dir в терминале
+ * (null, пока список не загружен или если загрузить не вышло).
+ */
 export function mountPlayer(root) {
     ui = createPlayerUI(root, {
         onPlayPause: togglePlay,
@@ -88,7 +94,10 @@ export function mountPlayer(root) {
     }, { volumeControl });
     ui.showVolume(audio.volume, audio.muted);
     void init();
-    return { setOpen: ui.setOpen };
+    return {
+        setOpen: ui.setOpen,
+        files: () => (loaded ? tracks.map((track) => track.file) : null),
+    };
 }
 
 function identityOrder() {
@@ -216,6 +225,7 @@ async function init() {
         }
         return;
     }
+    loaded = true;
 
     if (tracks.length === 0) {
         ui.showStatus("Нет треков", `нет mp3 в ${TRACKS_DIR}`);

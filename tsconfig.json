@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        // проверяются только файлы с // @ts-check: типы — из JSDoc, без сборки и без .ts
+        "allowJs": true,
+        "checkJs": false,
+        "noEmit": true,
+        "target": "es2022",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "lib": ["es2023", "dom"],
+        "strict": true,
+        "skipLibCheck": true
+    },
+    "include": ["*.js"]
+}
