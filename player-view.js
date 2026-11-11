@@ -115,7 +115,6 @@ export function createPlayerView(handlers, { volumeControl }) {
     const glows = [byId("glow-a", HTMLImageElement), byId("glow-b", HTMLImageElement)];
     const title = byId("now-title", HTMLElement);
     const artist = byId("now-artist", HTMLElement);
-    const where = byId("now-where", HTMLElement);
     const play = byId("btn-play", HTMLButtonElement);
     const shuffle = byId("btn-shuffle", HTMLButtonElement);
     const repeat = byId("btn-repeat", HTMLButtonElement);
@@ -243,14 +242,14 @@ export function createPlayerView(handlers, { volumeControl }) {
             showCover(track?.cover ?? null);
             title.textContent = track?.title ?? "";
             title.title = track?.title ?? "";
-            artist.textContent = track?.artist ?? "";
-            where.textContent = track === null ? "" : `${number} из ${total}`;
+            const where = `${number} из ${total}`;
+            artist.textContent = track === null ? "" : track.artist ? `${track.artist} · ${where}` : where;
             showTime(0, NaN);
         },
 
-        /** Пометка вместо номера трека: «не загрузился». */
+        /** Пометка вместо артиста: «не загрузился». */
         showTrackNote(/** @type {string} */ text) {
-            where.textContent = text;
+            artist.textContent = text;
         },
 
         /** Свечение переливается, только пока играет. */
