@@ -6,8 +6,8 @@
  * @typedef {object} Folder
  * @property {string} name имя, как его набирают в cd; регистр при сравнении не важен
  * @property {boolean} [locked] папка видна, но не открывается: cmd отвечает «Отказано в доступе.»
- * @property {Folder[]} [folders]
- * @property {() => string[] | null} [files] файлы для dir; null — список ещё не известен
+ * @property {Folder[] | null} [folders] вложенные папки; null — их список ещё не пришёл (плейлисты грузятся с GitHub)
+ * @property {() => string[]} [files] файлы для dir
  */
 
 /**
@@ -16,7 +16,10 @@
  */
 
 /**
- * @typedef {{ ok: true, path: Path, folder: Folder } | { ok: false, error: "not-found" | "locked" }} Resolved
+ * Итог разбора пути. При ошибке path — самая глубокая папка, до которой удалось дойти:
+ * туда и стоит вернуться, если в адресе страницы чужая папка.
+ * @typedef {{ ok: true, path: Path, folder: Folder }
+ *     | { ok: false, error: "not-found" | "locked" | "pending", path: Path }} Resolved
  */
 
 export const DRIVE = "SS:";
@@ -74,13 +77,17 @@ export function resolve(root, cwd, arg) {
             path.pop();
             continue;
         }
+        const parent = folderAt(root, path);
+        if (parent?.folders === null) {
+            return { ok: false, error: "pending", path };
+        }
         const wanted = part.toLowerCase();
-        const child = folderAt(root, path)?.folders?.find((folder) => folder.name.toLowerCase() === wanted);
+        const child = parent?.folders?.find((folder) => folder.name.toLowerCase() === wanted);
         if (!child) {
-            return { ok: false, error: "not-found" };
+            return { ok: false, error: "not-found", path };
         }
         if (child.locked) {
-            return { ok: false, error: "locked" };
+            return { ok: false, error: "locked", path };
         }
         path.push(child.name);
     }
@@ -88,7 +95,7 @@ export function resolve(root, cwd, arg) {
     const folder = folderAt(root, path);
     // путь собран только из найденных папок, так что папка есть всегда; проверка — для типов
     if (!folder) {
-        return { ok: false, error: "not-found" };
+        return { ok: false, error: "not-found", path: [] };
     }
     return { ok: true, path, folder };
 }
@@ -111,25 +118,20 @@ export function hashFor(path) {
 }
 
 /**
- * Обратный разбор адреса. null — в адресе нет такой папки или она закрыта.
+ * Обратный разбор адреса — тем же resolve, что и для cd от корня.
  * @param {Folder} root
  * @param {string} hash location.hash, с # или пустой
- * @returns {Path | null}
+ * @returns {Resolved}
  */
 export function pathFromHash(root, hash) {
-    const raw = hash.replace(/^#/, "");
-    if (raw === "") {
-        return [];
-    }
     let decoded;
     try {
-        decoded = decodeURIComponent(raw);
+        decoded = decodeURIComponent(hash.replace(/^#/, ""));
     } catch {
         // битая %-последовательность в адресе — такой папки точно нет
-        return null;
+        return { ok: false, error: "not-found", path: [] };
     }
-    const target = resolve(root, [], `\\${decoded}`);
-    return target.ok ? target.path : null;
+    return resolve(root, [], `\\${decoded}`);
 }
 
 /**
@@ -138,4 +140,19 @@ export function pathFromHash(root, hash) {
  */
 export function samePath(a, b) {
     return a.length === b.length && a.every((name, index) => name === b[index]);
+}
+
+/**
+ * Как дойти из одной папки в другую командой cd: ["mp3", "night"] → ["mp3", "liked"] даёт ..\liked.
+ * Так клик по папке печатается в терминал понятной командой, а не полным путём.
+ * @param {Path} from
+ * @param {Path} to
+ */
+export function relativePath(from, to) {
+    let common = 0;
+    while (common < from.length && common < to.length && from[common] === to[common]) {
+        common += 1;
+    }
+    const parts = [...Array.from({ length: from.length - common }, () => ".."), ...to.slice(common)];
+    return parts.length > 0 ? parts.join("\\") : ".";
 }

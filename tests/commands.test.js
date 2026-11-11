@@ -3,12 +3,19 @@ import { describe, it } from "node:test";
 
 import { HELP, MESSAGES, run } from "../commands.js";
 
-/** @param {string[] | null} files что вернёт mp3 на dir */
-function makeRoot(files = ["lushii - sushi.mp3", "Yung Angel - SAVE ME.mp3"]) {
+/**
+ * @param {object[] | null} playlists папки внутри mp3; null — ещё грузятся
+ */
+function makeRoot(
+    playlists = [
+        { name: "liked", files: () => ["lushii - sushi.mp3", "Yung Angel - SAVE ME.mp3"] },
+        { name: "night", files: () => [] },
+    ],
+) {
     return {
         name: "angel",
         folders: [
-            { name: "mp3", files: () => files },
+            { name: "mp3", folders: playlists },
             { name: "work", locked: true },
         ],
     };
@@ -17,6 +24,7 @@ function makeRoot(files = ["lushii - sushi.mp3", "Yung Angel - SAVE ME.mp3"]) {
 const root = makeRoot();
 const atRoot = { root, cwd: [] };
 const inMp3 = { root, cwd: ["mp3"] };
+const inLiked = { root, cwd: ["mp3", "liked"] };
 
 describe("cd", () => {
     it("переходит в папку и ничего не печатает, как cmd", () => {
@@ -48,14 +56,26 @@ describe("dir и ls", () => {
         assert.deepEqual(run("ls -la", atRoot).lines, ["  <DIR>  mp3", "  <DIR>  work"]);
     });
 
-    it("в mp3 показывают треки, в той же колонке, что и папки", () => {
-        assert.deepEqual(run("dir", inMp3).lines, ["         lushii - sushi.mp3", "         Yung Angel - SAVE ME.mp3"]);
-        assert.deepEqual(run("dir mp3", atRoot).lines, run("dir", inMp3).lines);
+    it("в mp3 показывают плейлисты, в плейлисте — треки, в той же колонке", () => {
+        assert.deepEqual(run("dir", inMp3).lines, ["  <DIR>  liked", "  <DIR>  night"]);
+        assert.deepEqual(run("dir", inLiked).lines, [
+            "         lushii - sushi.mp3",
+            "         Yung Angel - SAVE ME.mp3",
+        ]);
+        assert.deepEqual(run("dir mp3\\liked", atRoot).lines, run("dir", inLiked).lines);
     });
 
-    it("говорят, если список треков ещё не загружен или пуст", () => {
-        assert.deepEqual(run("dir", { root: makeRoot(null), cwd: ["mp3"] }).lines, [MESSAGES.notLoaded]);
-        assert.deepEqual(run("dir", { root: makeRoot([]), cwd: ["mp3"] }).lines, [MESSAGES.noFiles]);
+    it("говорят, если плейлисты ещё не загружены или папка пуста", () => {
+        const loading = { root: makeRoot(null), cwd: ["mp3"] };
+        assert.deepEqual(run("dir", loading).lines, [MESSAGES.notLoaded]);
+        assert.deepEqual(run("dir liked", loading).lines, [MESSAGES.notLoaded]);
+        assert.deepEqual(run("cd liked", loading).lines, [MESSAGES.notLoaded]);
+        assert.deepEqual(run("dir night", inMp3).lines, [MESSAGES.noFiles]);
+    });
+
+    it("cd ходит по плейлистам", () => {
+        assert.deepEqual(run("cd liked", inMp3), { lines: [], cd: ["mp3", "liked"] });
+        assert.deepEqual(run("cd ..\\night", inLiked), { lines: [], cd: ["mp3", "night"] });
     });
 
     it("не открывают закрытую папку и не находят чужую", () => {

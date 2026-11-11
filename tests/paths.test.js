@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { folderAt, formatPath, hashFor, pathFromHash, resolve, samePath } from "../paths.js";
+import { folderAt, formatPath, hashFor, pathFromHash, relativePath, resolve, samePath } from "../paths.js";
 
 const root = {
     name: "angel",
@@ -46,12 +46,18 @@ describe("resolve", () => {
         assert.deepEqual(pathOf(resolve(root, [], '"mp3"')), ["mp3"]);
     });
 
-    it("не находит чужие папки и не пускает в закрытые", () => {
-        assert.deepEqual(resolve(root, [], "mp4"), { ok: false, error: "not-found" });
-        assert.deepEqual(resolve(root, [], "mp3\\nope"), { ok: false, error: "not-found" });
-        assert.deepEqual(resolve(root, [], "angel"), { ok: false, error: "not-found" });
-        assert.deepEqual(resolve(root, [], "work"), { ok: false, error: "locked" });
-        assert.deepEqual(resolve(root, ["mp3"], "..\\WORK"), { ok: false, error: "locked" });
+    it("не находит чужие папки и не пускает в закрытые; говорит, докуда дошёл", () => {
+        assert.deepEqual(resolve(root, [], "mp4"), { ok: false, error: "not-found", path: [] });
+        assert.deepEqual(resolve(root, [], "mp3\\nope"), { ok: false, error: "not-found", path: ["mp3"] });
+        assert.deepEqual(resolve(root, [], "angel"), { ok: false, error: "not-found", path: [] });
+        assert.deepEqual(resolve(root, [], "work"), { ok: false, error: "locked", path: [] });
+        assert.deepEqual(resolve(root, ["mp3"], "..\\WORK"), { ok: false, error: "locked", path: [] });
+    });
+
+    it("в папку, чей список ещё грузится, отвечает pending", () => {
+        const loading = { name: "angel", folders: [{ name: "mp3", folders: null }] };
+        assert.deepEqual(resolve(loading, [], "mp3\\liked"), { ok: false, error: "pending", path: ["mp3"] });
+        assert.deepEqual(resolve(loading, [], "mp3").ok, true);
     });
 
     it("отдаёт саму папку вместе с путём", () => {
@@ -76,16 +82,17 @@ describe("адрес страницы", () => {
 
     it("pathFromHash читает то, что пишет hashFor", () => {
         for (const path of [[], ["mp3"], ["mp3", "covers"]]) {
-            assert.deepEqual(pathFromHash(root, hashFor(path)), path);
+            assert.deepEqual(pathOf(pathFromHash(root, hashFor(path))), path);
         }
-        assert.deepEqual(pathFromHash(root, "#MP3"), ["mp3"]);
-        assert.deepEqual(pathFromHash(root, ""), []);
+        assert.deepEqual(pathOf(pathFromHash(root, "#MP3")), ["mp3"]);
+        assert.deepEqual(pathOf(pathFromHash(root, "")), []);
     });
 
-    it("pathFromHash: чужая, закрытая папка или битый адрес — null", () => {
-        assert.equal(pathFromHash(root, "#nope"), null);
-        assert.equal(pathFromHash(root, "#work"), null);
-        assert.equal(pathFromHash(root, "#%E0%A4%A"), null);
+    it("pathFromHash: чужая или закрытая папка, битый адрес — ошибка и ближайшая настоящая папка", () => {
+        assert.deepEqual(pathFromHash(root, "#nope"), { ok: false, error: "not-found", path: [] });
+        assert.deepEqual(pathFromHash(root, "#mp3/nope"), { ok: false, error: "not-found", path: ["mp3"] });
+        assert.deepEqual(pathFromHash(root, "#work"), { ok: false, error: "locked", path: [] });
+        assert.deepEqual(pathFromHash(root, "#%E0%A4%A"), { ok: false, error: "not-found", path: [] });
     });
 });
 
@@ -94,6 +101,14 @@ describe("мелочи", () => {
         assert.equal(folderAt(root, []), root);
         assert.equal(folderAt(root, ["mp3", "covers"]), root.folders[0].folders[0]);
         assert.equal(folderAt(root, ["nope"]), null);
+    });
+
+    it("relativePath: как дойти cd из одной папки в другую", () => {
+        assert.equal(relativePath([], ["mp3"]), "mp3");
+        assert.equal(relativePath(["mp3"], ["mp3", "covers"]), "covers");
+        assert.equal(relativePath(["mp3", "covers"], ["mp3"]), "..");
+        assert.equal(relativePath(["mp3", "covers"], ["work"]), "..\\..\\work");
+        assert.equal(relativePath(["mp3"], ["mp3"]), ".");
     });
 
     it("samePath", () => {

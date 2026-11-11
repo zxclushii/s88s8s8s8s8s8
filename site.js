@@ -1,33 +1,64 @@
 // @ts-check
-// Сайт — диск SS:\angel. Главная: надпись, мем, папки, внизу терминал. Папка mp3 — экран плеера.
-// Где мы — в адресе страницы (#mp3), поэтому работает «назад» и ссылку прямо на mp3 можно кинуть.
+// Сайт — диск SS:\angel. Главная: надпись, мем, папки, внизу терминал. Папка mp3 — плеер, в ней папки-плейлисты.
+// Где мы — в адресе страницы (#mp3/liked), поэтому работает «назад» и ссылку прямо на плейлист можно кинуть.
 
 import { byId } from "./dom.js";
 import { renderFolders } from "./folders.js";
-import { hashFor, pathFromHash, samePath } from "./paths.js";
+import { hashFor, pathFromHash, relativePath, samePath } from "./paths.js";
 import { mountPlayer } from "./player.js";
 import { createTerminal } from "./terminal.js";
 
 /** @typedef {import("./paths.js").Path} Path */
+/** @typedef {import("./paths.js").Folder} Folder */
 
-const home = byId("home", HTMLElement);
-const player = mountPlayer(byId("player-frame", HTMLElement));
+const screens = { home: byId("home", HTMLElement), mp3: byId("mp3", HTMLElement) };
 
-/** @type {import("./paths.js").Folder} */
+// плейлисты — подпапки mp3 — приходят с GitHub; до этого их список неизвестен
+/** @type {Folder} */
+const mp3 = { name: "mp3", folders: null };
+/** @type {Folder} */
 const root = {
     name: "angel",
     folders: [
-        { name: "mp3", files: () => player.files() },
+        mp3,
         // работы ещё нет: папка стоит на месте, но открыть её нельзя
         { name: "work", locked: true },
     ],
 };
-
-const terminal = createTerminal({ root, onCd: go });
-renderFolders(byId("folders", HTMLElement), root.folders ?? [], (folder) => terminal.execute(`cd ${folder.name}`));
+// первая папка на экране mp3 — наверх, как в проводнике
+const UP = { name: "..", label: "наверх" };
 
 /** @type {Path} */
 let current = [];
+
+const terminal = createTerminal({ root, onCd: go });
+
+/**
+ * Клик по папке печатает в терминал cd — тот же, что набрал бы человек, — и терминал ведёт дальше.
+ * @param {Path} target
+ */
+function openFolder(target) {
+    terminal.execute(`cd ${relativePath(current, target)}`);
+}
+
+renderFolders(byId("folders", HTMLElement), root.folders ?? [], (folder) => openFolder([folder.name]));
+
+const playlistList = byId("mp3-folders", HTMLElement);
+let playlistFolders = renderFolders(playlistList, [UP], () => terminal.execute("cd .."));
+
+const player = mountPlayer({
+    onPlaylists(playlists) {
+        mp3.folders = playlists.map((playlist) => ({
+            name: playlist.name,
+            files: () => playlist.tracks.map((track) => track.file),
+        }));
+        playlistFolders = renderFolders(playlistList, [UP, ...mp3.folders], (folder) =>
+            folder === UP ? terminal.execute("cd ..") : openFolder(["mp3", folder.name]),
+        );
+        // в адресе мог ждать плейлист, которого до загрузки ещё не было
+        showFromAddress();
+    },
+});
 
 /**
  * Переход по команде или клику: новая запись в истории браузера, потом экран.
@@ -44,26 +75,32 @@ function go(path) {
 /** @param {Path} path */
 function show(path) {
     current = path;
-    const screen = path[0] ?? "home";
+    const screen = path[0] === "mp3" ? "mp3" : "home";
     document.body.dataset.screen = screen;
-    // главная прячется, а кнопка-папка, на которой стоял фокус, осталась бы невидимой с фокусом
-    if (screen !== "home" && document.activeElement instanceof HTMLElement && home.contains(document.activeElement)) {
-        document.activeElement.blur();
+    // спрятанный экран не должен держать фокус: кнопка осталась бы невидимой, но нажимаемой с клавиатуры
+    for (const [name, element] of Object.entries(screens)) {
+        const focused = document.activeElement;
+        if (name !== screen && focused instanceof HTMLElement && element.contains(focused)) {
+            focused.blur();
+        }
     }
-    player.setOpen(screen === "mp3");
+    if (screen === "mp3") {
+        playlistFolders.setCurrent(player.show(path[1] ?? null));
+    }
     terminal.setCwd(path);
 }
 
 /** Экран по адресу: при загрузке, после «назад» и «вперёд», после ручной правки адреса. */
 function showFromAddress() {
-    const path = pathFromHash(root, location.hash);
-    if (path === null) {
-        // в адресе несуществующая или закрытая папка — остаёмся на главной и чистим адрес
-        history.replaceState(null, "", location.pathname + location.search);
-        show([]);
+    const target = pathFromHash(root, location.hash);
+    if (target.ok || target.error === "pending") {
+        // pending — плейлисты ещё грузятся: показываем mp3, а адрес не трогаем, onPlaylists перечитает его
+        show(target.path);
         return;
     }
-    show(path);
+    // в адресе несуществующая или закрытая папка — встаём на ближайшую настоящую и чиним адрес
+    history.replaceState(null, "", hashFor(target.path) || location.pathname + location.search);
+    show(target.path);
 }
 
 window.addEventListener("popstate", showFromAddress);

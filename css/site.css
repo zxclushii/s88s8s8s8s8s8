@@ -1,4 +1,4 @@
-/* Главная и терминал. Старый плеер (экран mp3) пока рисует себя сам из ui.js. */
+/* Главная, экран mp3 и терминал. */
 
 @font-face {
     font-family: "Cormorant Garamond";
@@ -17,6 +17,11 @@
     font-style: italic;
     font-display: swap;
     unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+    font-family: "UnifrakturMaguntia";
+    src: url("../fonts/UnifrakturMaguntia-400.woff2") format("woff2");
+    font-display: swap;
 }
 @font-face {
     font-family: "IBM Plex Mono";
@@ -49,6 +54,8 @@
     --serif: "Cormorant Garamond", "Times New Roman", serif;
     --mono: "IBM Plex Mono", ui-monospace, "Courier New", monospace;
     --sans: Arial, Helvetica, sans-serif;
+    /* готика — только для цифр */
+    --gothic: "UnifrakturMaguntia", "Cormorant Garamond", serif;
 
     --gut: 7.6vw;
     /* терминал: кегль, отступ от низа и полная высота — подпись, поля и четыре строки (три ответа и ввод) */
@@ -57,6 +64,9 @@
     --term-full: calc(28px + 35px + 6.4 * var(--term-font));
     /* всё, что стоит над терминалом, держится выше его полной высоты: он растёт вверх и не налезает */
     --above-term: calc(var(--term-bottom) + var(--term-full) + 4vh);
+    /* панель плеера стоит над полной высотой терминала */
+    --bar-h: 64px;
+    --bar-bottom: calc(var(--term-bottom) + var(--term-full) + 2.4vh);
 }
 
 *,
@@ -86,9 +96,17 @@ body {
     color: var(--ink);
 }
 
-/* главная */
+.sprite {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
 
-.home {
+/* экраны: виден тот, что записан в body[data-screen], остальные тают */
+
+.home,
+.mp3 {
     position: fixed;
     inset: 0;
     transition:
@@ -96,10 +114,13 @@ body {
         visibility 0.4s;
 }
 
-body:not([data-screen="home"]) .home {
+body:not([data-screen="home"]) .home,
+body:not([data-screen="mp3"]) .mp3 {
     opacity: 0;
     visibility: hidden;
 }
+
+/* главная */
 
 .title {
     position: absolute;
@@ -194,6 +215,19 @@ body:not([data-screen="home"]) .home {
     transition: color 0.2s;
 }
 
+.folder[aria-current="true"] .folder-back {
+    fill: var(--s2);
+}
+.folder[aria-current="true"] .folder-front {
+    fill: var(--s3);
+}
+.folder[aria-current="true"] .folder-star {
+    opacity: 1;
+}
+.folder[aria-current="true"] .folder-name {
+    color: var(--white);
+}
+
 /* наведение — только там, где есть мышь: на тачскрине подсветка залипла бы после тапа */
 @media (hover: hover) {
     .folder:hover .folder-back {
@@ -219,14 +253,477 @@ body:not([data-screen="home"]) .home {
     opacity: 1;
 }
 
-/* экран mp3: старый плеер раскладывается внутри отступов этой рамки, снизу оставлено место под терминал */
+/* экран mp3 */
 
-.player-frame {
-    position: fixed;
-    inset: 0;
+.mp3 {
+    /* обложка — квадрат по центру: не выше места между папками и панелью */
+    --cover: min(44vh, 26vw, calc(100vh - var(--bar-bottom) - var(--bar-h) - 21vh));
+}
+
+.folders-small {
+    top: 5vh;
+    bottom: auto;
+    gap: 2.4vw;
+}
+
+.folders-small .folder {
+    width: clamp(64px, 4.6vw, 108px);
+}
+
+.folders-small .folder-name {
+    margin-top: 9px;
+    font-size: 14px;
+}
+
+.playlist {
+    position: absolute;
+    top: 27vh;
+    bottom: calc(var(--bar-bottom) + var(--bar-h) + 3vh);
+    left: var(--gut);
+    display: flex;
+    flex-direction: column;
+    width: 22vw;
+}
+
+.playlist-head {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    margin: 0 0 2.2vh;
+    color: var(--white);
+    font: italic 400 clamp(36px, 3vw, 64px) / 1 var(--serif);
+}
+
+.playlist-count {
+    color: var(--grey);
+    font: 400 14px var(--sans);
+}
+
+.playlist-note {
+    margin: 0;
+    color: var(--grey);
+    font: 400 15px/1.4 var(--sans);
+}
+
+.playlist-tracks {
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+    scrollbar-color: var(--s3) transparent;
+    scrollbar-width: thin;
+}
+
+.track {
+    display: grid;
+    grid-template-columns: 2.4em 1fr;
+    column-gap: 6px;
+    align-items: center;
+    width: 100%;
+    padding: 10px 14px 10px 10px;
+    border: 0;
+    background: none;
+    color: var(--white-2);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.track-n {
+    grid-row: span 2;
+    color: var(--grey);
+    font: 400 22px/1 var(--gothic);
+    text-align: center;
+}
+
+.track-star {
+    display: none;
+    width: 18px;
+    height: 18px;
+    margin: 0 auto;
+    grid-row: span 2;
+    fill: var(--white);
+}
+
+.track-title,
+.track-artist {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.track-title {
+    font: 400 17px/1.25 var(--sans);
+}
+
+.track-artist {
+    color: var(--grey);
+    font: 400 14px/1.3 var(--sans);
+}
+
+/* играющий трек: звезда вместо номера */
+.track[aria-current="true"] {
+    background: var(--s1);
+    color: var(--white);
+}
+.track[aria-current="true"] .track-n {
+    display: none;
+}
+.track[aria-current="true"] .track-star {
+    display: block;
+}
+
+@media (hover: hover) {
+    .track:hover {
+        background: var(--s1);
+        color: var(--white);
+    }
+}
+
+.track:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: -1px;
+}
+
+.stage {
+    position: absolute;
+    top: 17vh;
+    left: 50%;
+    width: var(--cover);
+    height: var(--cover);
+    margin-left: calc(var(--cover) / -2);
+}
+
+.cover,
+.cover-empty {
+    position: relative;
     z-index: 1;
-    padding: 5vh var(--gut) var(--above-term);
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.cover {
+    object-fit: cover;
+}
+
+.cover-empty {
+    padding: 34%;
+    background: var(--s1);
+    fill: var(--s3);
+}
+
+.cover[hidden],
+.cover-empty[hidden] {
+    display: none;
+}
+
+/* Свечение — та же обложка, сильно размытая. Пока играет музыка, два слоя медленно плывут
+   навстречу друг другу и цвета переливаются; на паузе замирают там, где были. */
+.glow {
+    position: absolute;
+    inset: -22%;
+    z-index: 0;
+    opacity: 0.34;
+    filter: blur(70px) saturate(1.2);
     pointer-events: none;
+}
+
+.glow img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    animation: glow-drift 16s ease-in-out infinite alternate paused;
+}
+
+.glow img + img {
+    opacity: 0.7;
+    mix-blend-mode: screen;
+    animation: glow-drift-back 23s ease-in-out infinite alternate paused;
+}
+
+.glow img:not([src]) {
+    visibility: hidden;
+}
+
+.mp3.playing .glow img {
+    animation-play-state: running;
+}
+
+@keyframes glow-drift {
+    from {
+        transform: rotate(0deg) scale(1);
+    }
+    to {
+        transform: rotate(28deg) scale(1.16) translate(5%, -4%);
+    }
+}
+
+@keyframes glow-drift-back {
+    from {
+        transform: rotate(180deg) scale(0.92);
+    }
+    to {
+        transform: rotate(132deg) scale(1.1) translate(-6%, 5%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .glow img,
+    .glow img + img {
+        animation: none;
+    }
+}
+
+/* название трека — у правого нижнего угла обложки, как «ну почему..» у надписи на главной */
+.now {
+    position: absolute;
+    bottom: -6px;
+    left: calc(100% + 3vw);
+    z-index: 1;
+    width: calc(50vw - var(--cover) / 2 - 3vw - var(--gut));
+}
+
+.now-title,
+.now-artist {
+    margin: 0;
+}
+
+.now-title {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    color: var(--white);
+    font: italic 400 clamp(40px, 3.6vw, 80px) / 1 var(--serif);
+    overflow-wrap: anywhere;
+}
+
+.now-artist {
+    margin-top: 12px;
+    color: var(--grey);
+    font: 400 15px/1.3 var(--sans);
+}
+
+.bar {
+    position: absolute;
+    right: var(--gut);
+    bottom: var(--bar-bottom);
+    left: var(--gut);
+    display: flex;
+    gap: 26px;
+    align-items: center;
+    height: var(--bar-h);
+    padding: 0 24px;
+    background: var(--s1);
+}
+
+.btn {
+    position: relative;
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--white-2);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.btn svg {
+    width: 22px;
+    height: 22px;
+}
+
+@media (hover: hover) {
+    .btn:hover {
+        color: var(--white);
+    }
+}
+
+.btn:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: 3px;
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.icon-fill {
+    fill: currentColor;
+}
+
+.icon-line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.btn-play {
+    width: 42px;
+    height: 42px;
+    margin: 0 -6px;
+    border-radius: 50%;
+    background: var(--white);
+    color: var(--ink);
+}
+
+@media (hover: hover) {
+    .btn-play:hover {
+        color: var(--ink);
+    }
+}
+
+.btn-play svg {
+    width: 18px;
+    height: 18px;
+}
+
+.btn-play .icon-play {
+    /* треугольник визуально левее центра — сдвигаем, чтобы сидел посередине круга */
+    margin-left: 3px;
+}
+
+.btn-play .icon-pause,
+.mp3.playing .btn-play .icon-play {
+    display: none;
+}
+
+.mp3.playing .btn-play .icon-pause {
+    display: block;
+}
+
+/* перемешать и повтор: выключены — серые, включены — белые со звездой снизу */
+.btn-toggle {
+    color: var(--grey);
+}
+
+.btn-toggle .mark {
+    position: absolute;
+    bottom: -9px;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    fill: var(--white);
+    visibility: hidden;
+}
+
+.btn-toggle[aria-pressed="true"],
+.btn-toggle[data-mode="all"],
+.btn-toggle[data-mode="one"] {
+    color: var(--white);
+}
+
+.btn-toggle[aria-pressed="true"] .mark,
+.btn-toggle[data-mode="all"] .mark,
+.btn-toggle[data-mode="one"] .mark {
+    visibility: visible;
+}
+
+.repeat-one {
+    display: none;
+    fill: currentColor;
+    stroke: none;
+    font: 700 7.5px var(--sans);
+}
+
+.btn-toggle[data-mode="one"] .repeat-one {
+    display: inline;
+}
+
+.vol-low,
+.vol-high,
+.vol-mute {
+    display: none;
+}
+
+#btn-mute[data-level="low"] .vol-low,
+#btn-mute[data-level="high"] .vol-low,
+#btn-mute[data-level="high"] .vol-high,
+#btn-mute[data-level="mute"] .vol-mute {
+    display: inline;
+}
+
+.time {
+    flex: none;
+    min-width: 3.4em;
+    color: var(--grey);
+    font: 400 13px var(--mono);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+/* полоски перемотки и громкости — обычный input range: клавиатура и скринридер работают сами */
+.range {
+    --fill: 0%;
+    flex: 1;
+    min-width: 0;
+    height: 18px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    appearance: none;
+}
+
+.range.volume {
+    flex: none;
+    width: 96px;
+}
+
+.range::-webkit-slider-runnable-track {
+    height: 3px;
+    background: linear-gradient(to right, var(--white) var(--fill), var(--s3) var(--fill));
+}
+
+.range::-moz-range-track {
+    height: 3px;
+    background: var(--s3);
+}
+
+.range::-moz-range-progress {
+    height: 3px;
+    background: var(--white);
+}
+
+.range::-webkit-slider-thumb {
+    width: 11px;
+    height: 11px;
+    margin-top: -4px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--white);
+    appearance: none;
+}
+
+.range::-moz-range-thumb {
+    width: 11px;
+    height: 11px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--white);
+}
+
+.range:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: 4px;
+}
+
+.range:disabled {
+    opacity: 0.4;
+    cursor: default;
 }
 
 /* терминал — на всех экранах */

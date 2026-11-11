@@ -15,16 +15,18 @@
         />
         <link rel="preload" href="fonts/IBMPlexMono-400.woff2" as="font" type="font/woff2" crossorigin />
         <link rel="stylesheet" href="css/site.css" />
-        <!-- шрифты старого плеера; уйдут вместе с ним, когда переделаем mp3 -->
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            rel="stylesheet"
-            href="https://fonts.googleapis.com/css2?family=M+PLUS+1+Code:wght@400;700&family=Noto+Sans+Mono:wght@400;700&display=swap"
-        />
         <script type="module" src="site.js"></script>
     </head>
     <body data-screen="home">
+        <svg class="sprite" aria-hidden="true">
+            <!-- восьмиконечная звезда, как над i в lushii: метка играющего трека и включённых кнопок -->
+            <symbol id="star" viewBox="-100 -100 200 200">
+                <path
+                    d="M-6.9 16.6L0 100L6.9 16.6L31.1 31.1L16.6 6.9L72 0L16.6 -6.9L31.1 -31.1L6.9 -16.6L0 -100L-6.9 -16.6L-31.1 -31.1L-16.6 -6.9L-72 0L-16.6 6.9L-31.1 31.1L-6.9 16.6Z"
+                />
+            </symbol>
+        </svg>
+
         <main class="home" id="home">
             <h1 class="title">
                 <svg class="wordmark" viewBox="-130 -1100 4130 1330" role="img" aria-label="lushii ну почему..">
@@ -43,7 +45,96 @@
             <ul class="folders" id="folders" aria-label="Папки"></ul>
         </main>
 
-        <div class="player-frame" id="player-frame"></div>
+        <section class="mp3" id="mp3" aria-label="mp3">
+            <ul class="folders folders-small" id="mp3-folders" aria-label="Плейлисты"></ul>
+
+            <section class="playlist" aria-labelledby="playlist-name">
+                <h2 class="playlist-head">
+                    <span id="playlist-name">mp3</span>
+                    <small class="playlist-count" id="playlist-count"></small>
+                </h2>
+                <p class="playlist-note" id="playlist-note" hidden></p>
+                <ol class="playlist-tracks" id="playlist-tracks"></ol>
+            </section>
+
+            <div class="stage">
+                <div class="glow" aria-hidden="true">
+                    <img id="glow-a" alt="" />
+                    <img id="glow-b" alt="" />
+                </div>
+                <img class="cover" id="cover" alt="" hidden />
+                <svg class="cover-empty" id="cover-empty" aria-hidden="true"><use href="#star" /></svg>
+                <div class="now" aria-live="polite">
+                    <p class="now-title" id="now-title"></p>
+                    <p class="now-artist" id="now-artist"></p>
+                </div>
+            </div>
+
+            <div class="bar" role="group" aria-label="Управление плеером">
+                <button class="btn" id="btn-prev" type="button" aria-label="Предыдущий трек">
+                    <svg class="icon-fill" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="5" y="6" width="2" height="12" rx=".5" />
+                        <path d="M19 6.5v11a.6.6 0 0 1-.9.5L8.8 12.5a.6.6 0 0 1 0-1L18.1 6a.6.6 0 0 1 .9.5z" />
+                    </svg>
+                </button>
+                <button class="btn btn-play" id="btn-play" type="button" aria-label="Играть">
+                    <svg class="icon-fill icon-play" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 4.8v14.4a.8.8 0 0 0 1.2.7l11.6-7.2a.8.8 0 0 0 0-1.4L8.2 4.1A.8.8 0 0 0 7 4.8z" />
+                    </svg>
+                    <svg class="icon-fill icon-pause" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="6.5" y="5" width="3.6" height="14" rx=".8" />
+                        <rect x="13.9" y="5" width="3.6" height="14" rx=".8" />
+                    </svg>
+                </button>
+                <button class="btn" id="btn-next" type="button" aria-label="Следующий трек">
+                    <svg class="icon-fill" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="17" y="6" width="2" height="12" rx=".5" />
+                        <path d="M5 6.5v11a.6.6 0 0 0 .9.5l9.3-5.5a.6.6 0 0 0 0-1L5.9 6a.6.6 0 0 0-.9.5z" />
+                    </svg>
+                </button>
+
+                <span class="time" id="time-now">0:00</span>
+                <input class="range seek" id="seek" type="range" min="0" max="1000" value="0" aria-label="Перемотка" />
+                <span class="time" id="time-total">0:00</span>
+
+                <button
+                    class="btn btn-toggle"
+                    id="btn-shuffle"
+                    type="button"
+                    aria-label="Перемешать"
+                    aria-pressed="false"
+                >
+                    <svg class="icon-line" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M16 4h4v4M4 20 20 4M20 16v4h-4M14.5 14.5 20 20M4 4l5 5" />
+                    </svg>
+                    <svg class="mark" aria-hidden="true"><use href="#star" /></svg>
+                </button>
+                <button class="btn btn-toggle" id="btn-repeat" type="button" aria-label="Повтор: выключен">
+                    <svg class="icon-line" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M17 2l3 3-3 3M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3M20 13v2a4 4 0 0 1-4 4H4" />
+                        <text class="repeat-one" x="12" y="15.1" text-anchor="middle">1</text>
+                    </svg>
+                    <svg class="mark" aria-hidden="true"><use href="#star" /></svg>
+                </button>
+                <button class="btn" id="btn-mute" type="button" aria-label="Выключить звук">
+                    <svg class="icon-line" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M11 5 6 9H3v6h3l5 4V5z" />
+                        <path class="vol-low" d="M15.5 8.5a5 5 0 0 1 0 7" />
+                        <path class="vol-high" d="M18.5 5.5a9 9 0 0 1 0 13" />
+                        <path class="vol-mute" d="M16 9l5 6M21 9l-5 6" />
+                    </svg>
+                </button>
+                <input
+                    class="range volume"
+                    id="volume"
+                    type="range"
+                    min="0"
+                    max="100"
+                    value="100"
+                    aria-label="Громкость"
+                />
+            </div>
+        </section>
 
         <section class="term" aria-label="angel terminal">
             <label class="term-name" for="term-input">angel terminal</label>

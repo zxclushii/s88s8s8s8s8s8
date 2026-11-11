@@ -18,7 +18,7 @@ export const MESSAGES = {
     notFound: "Системе не удается найти указанный путь.",
     denied: "Отказано в доступе.",
     noFiles: "Файл не найден",
-    notLoaded: "Список треков ещё не загружен.",
+    notLoaded: "Список треков не загружен.",
     /** @param {string} name */
     unknown: (name) =>
         `"${name}" не является внутренней или внешней командой, исполняемой программой или пакетным файлом.`,
@@ -84,7 +84,7 @@ function changeDir(root, cwd, arg) {
     }
     const target = resolve(root, cwd, arg);
     if (!target.ok) {
-        return { lines: [target.error === "locked" ? MESSAGES.denied : MESSAGES.notFound] };
+        return { lines: [failure(target.error, MESSAGES.notFound)] };
     }
     return { lines: [], cd: target.path };
 }
@@ -105,7 +105,7 @@ function listDir(root, cwd, arg) {
     if (where !== "") {
         const target = resolve(root, cwd, where);
         if (!target.ok) {
-            return { lines: [target.error === "locked" ? MESSAGES.denied : MESSAGES.noFiles] };
+            return { lines: [failure(target.error, MESSAGES.noFiles)] };
         }
         folder = target.folder;
     }
@@ -114,13 +114,26 @@ function listDir(root, cwd, arg) {
         throw new Error(`dir: нет папки ${formatPath(root, cwd)}`);
     }
 
-    const files = folder.files ? folder.files() : [];
-    if (files === null) {
+    // папки внутри ещё не пришли с GitHub (или не пришли совсем)
+    if (folder.folders === null) {
         return { lines: [MESSAGES.notLoaded] };
     }
+    const files = folder.files ? folder.files() : [];
     const lines = [
         ...(folder.folders ?? []).map((child) => DIR_MARK + child.name),
         ...files.map((file) => FILE_MARK + file),
     ];
     return { lines: lines.length > 0 ? lines : [MESSAGES.noFiles] };
+}
+
+/**
+ * Ответ на путь, который не разобрался.
+ * @param {"not-found" | "locked" | "pending"} error
+ * @param {string} notFound у cd и dir свои слова для «нет такого»
+ */
+function failure(error, notFound) {
+    if (error === "locked") {
+        return MESSAGES.denied;
+    }
+    return error === "pending" ? MESSAGES.notLoaded : notFound;
 }

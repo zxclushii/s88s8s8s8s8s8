@@ -1,7 +1,2 @@
 # пишет npm
 package-lock.json
-# старый плеер написан до Prettier; отформатируем, когда будем переделывать mp3
-gloss.js
-player.js
-tracks.js
-ui.js
