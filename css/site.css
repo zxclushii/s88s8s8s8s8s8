@@ -1372,7 +1372,8 @@ body[data-screen="work"] .term::before {
     filter: drop-shadow(0 0 3px rgb(232 230 225 / 0.9)) drop-shadow(0 0 10px rgb(232 230 225 / 0.55));
 }
 
-/* exit: на весь экран красным переспрашивает, держится и медленно гаснет (exit.js убирает её через 3,6 с) */
+/* exit: на весь экран красным переспрашивает шрифтом терминала, держится и медленно гаснет
+   (exit.js убирает надпись через 3,6 с) */
 .exit-scare {
     position: fixed;
     inset: 0;
@@ -1382,21 +1383,24 @@ body[data-screen="work"] .term::before {
     align-items: center;
     justify-content: center;
     padding: 0 6vw;
-    background: rgb(10 10 10 / 0.72);
+    /* фон почти глухой: на телефоне надпись ложится прямо на мем, и сквозь него её не прочитать */
+    background: rgb(10 10 10 / 0.9);
     color: var(--blood);
     text-align: center;
     pointer-events: none;
     animation: exit-fade 3.6s ease-in forwards;
 }
 
+/* шрифт терминала: это ответ на команду, а не надпись сайта */
 .exit-big {
     margin: 0;
-    font: italic 400 clamp(96px, 19vw, 360px) / 0.9 var(--serif);
+    font: 400 clamp(52px, 10.5vw, 200px) / 1 var(--mono);
+    letter-spacing: -0.02em;
 }
 
 .exit-small {
-    margin: 2vh 0 0;
-    font: italic 400 clamp(30px, 4.6vw, 88px) / 1 var(--serif);
+    margin: 2.4vh 0 0;
+    font: 400 clamp(20px, 3.3vw, 64px) / 1.1 var(--mono);
 }
 
 @keyframes exit-fade {

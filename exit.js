@@ -13,10 +13,10 @@ export function showExit() {
     overlay.setAttribute("role", "alert");
     const question = document.createElement("p");
     question.className = "exit-big";
-    question.textContent = "exit?";
+    question.textContent = "exit?)))?)";
     const really = document.createElement("p");
     really.className = "exit-small";
-    really.textContent = "are you seriously?";
+    really.textContent = "are you seriously?))";
     overlay.append(question, really);
     document.body.append(overlay);
     window.setTimeout(() => overlay.remove(), SHOW_MS);
