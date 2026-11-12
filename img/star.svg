@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+    <!-- иконка вкладки: звезда, как над i в lushii, на тёмном квадрате — видна и в светлой, и в тёмной теме -->
+    <rect width="64" height="64" rx="13" fill="#0a0a0a" />
+    <path
+        transform="translate(32 32) scale(0.3)"
+        fill="#e8e6e1"
+        stroke="#e8e6e1"
+        stroke-width="7"
+        stroke-linejoin="round"
+        d="M-6.9 16.6L0 100L6.9 16.6L31.1 31.1L16.6 6.9L72 0L16.6 -6.9L31.1 -31.1L6.9 -16.6L0 -100L-6.9 -16.6L-31.1 -31.1L-16.6 -6.9L-72 0L-16.6 6.9L-31.1 31.1L-6.9 16.6Z"
+    />
+</svg>

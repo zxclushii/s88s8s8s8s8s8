@@ -8,6 +8,7 @@ import { renderFolders } from "./folders.js";
 import { hashFor, pathFromHash, relativePath, samePath } from "./paths.js";
 import { mountPlayer } from "./player.js";
 import { createTerminal } from "./terminal.js";
+import { createTrails } from "./trails.js";
 import { mountWork } from "./work.js";
 
 /** @typedef {import("./paths.js").Path} Path */
@@ -33,7 +34,7 @@ const UP = { name: "..", label: "наверх" };
 /** @type {Path} */
 let current = [];
 
-const terminal = createTerminal({ root, onCd: go });
+const terminal = createTerminal({ root, onCd: go, trails: createTrails() });
 
 /**
  * Клик по папке печатает в терминал cd — тот же, что набрал бы человек, — и терминал ведёт дальше.

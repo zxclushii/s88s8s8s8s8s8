@@ -8,6 +8,7 @@ import { folderAt, formatPath, resolve } from "./paths.js";
 
 /** @typedef {import("./paths.js").Folder} Folder */
 /** @typedef {import("./paths.js").Path} Path */
+/** @typedef {import("./trails.js").TrailSwitch} TrailSwitch */
 
 const HISTORY_LIMIT = 50;
 // на экране видно три последние строки (это делает CSS), а в памяти держим с запасом
@@ -16,9 +17,10 @@ const COMPLETABLE = /^(\s*(?:cd|chdir|dir|ls)\s+)(.*)$/i;
 
 /**
  * Подключает терминал к разметке из index.html.
- * @param {{ root: Folder, onCd: (path: Path) => void }} options onCd — команда просит перейти в папку
+ * @param {{ root: Folder, onCd: (path: Path) => void, trails: TrailSwitch }} options onCd — команда просит
+ *     перейти в папку; trails — след за курсором, его включают star_cursive и heart_cursive
  */
-export function createTerminal({ root, onCd }) {
+export function createTerminal({ root, onCd, trails }) {
     const box = byId("term-box", HTMLElement);
     const log = byId("term-log", HTMLElement);
     const form = byId("term-form", HTMLFormElement);
@@ -63,12 +65,15 @@ export function createTerminal({ root, onCd }) {
         cursor = past.length;
         draft = "";
 
-        const result = run(line, { root, cwd });
+        const result = run(line, { root, cwd, trails: trails.state(), calm: trails.calm() });
         if (result.clear) {
             log.replaceChildren();
         }
         for (const text of result.lines) {
             print(text, "out");
+        }
+        if (result.trail) {
+            trails.set(result.trail.trail, result.trail.on);
         }
         if (result.cd) {
             onCd(result.cd);

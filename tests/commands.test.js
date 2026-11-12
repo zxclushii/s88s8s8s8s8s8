@@ -109,3 +109,40 @@ describe("остальное", () => {
         assert.deepEqual(run("mp3", atRoot).lines, [MESSAGES.unknown("mp3")]);
     });
 });
+
+describe("star_cursive и heart_cursive", () => {
+    it("on и off включают и выключают след, регистр не важен", () => {
+        assert.deepEqual(run("star_cursive on", atRoot), {
+            lines: ["Звёздочки за курсором включены."],
+            trail: { trail: "star", on: true },
+        });
+        assert.deepEqual(run("HEART_CURSIVE OFF", { ...atRoot, trails: { star: false, heart: true } }), {
+            lines: ["Сердечки за курсором выключены."],
+            trail: { trail: "heart", on: false },
+        });
+    });
+
+    it("без аргумента говорит, включён ли след, как echo в cmd", () => {
+        assert.deepEqual(run("star_cursive", { ...atRoot, trails: { star: true, heart: false } }), {
+            lines: ["Звёздочки за курсором включены."],
+        });
+        assert.deepEqual(run("heart_cursive", atRoot), { lines: ["Сердечки за курсором выключены."] });
+    });
+
+    it("на другое слово подсказывает, как писать", () => {
+        assert.deepEqual(run("star_cursive maybe", atRoot), { lines: [MESSAGES.trailUsage("star_cursive")] });
+    });
+
+    it("при уменьшении движения не включает, а выключить даёт", () => {
+        assert.deepEqual(run("star_cursive on", { ...atRoot, calm: true }), { lines: [MESSAGES.calm] });
+        assert.deepEqual(run("star_cursive off", { ...atRoot, calm: true }), {
+            lines: ["Звёздочки за курсором выключены."],
+            trail: { trail: "star", on: false },
+        });
+    });
+
+    it("есть в справке", () => {
+        assert.ok(HELP.some((line) => line.startsWith("star_cursive ")));
+        assert.ok(HELP.some((line) => line.startsWith("heart_cursive ")));
+    });
+});

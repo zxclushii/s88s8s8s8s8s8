@@ -1336,6 +1336,16 @@ body[data-screen="work"] .term::before {
     height: auto;
 }
 
+/* след за курсором (star_cursive, heart_cursive): поверх всего и не мешает кликам */
+.trail {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
 /* телефон: главная — колонкой, mp3 — список и мини-плеер, по тапу — плеер во весь экран */
 
 @media (max-width: 760px) {
