@@ -137,6 +137,7 @@ export function createPlayerView(handlers, { volumeControl }) {
 
     play.addEventListener("click", () => handlers.onPlayPause());
     dockPlay.addEventListener("click", () => handlers.onPlayPause());
+    byId("dock-prev", HTMLButtonElement).addEventListener("click", () => handlers.onPrevious());
     byId("dock-next", HTMLButtonElement).addEventListener("click", () => handlers.onNext());
 
     // Раскрытая дека — отдельная запись в истории: «назад» на телефоне сворачивает её, а не уводит с mp3.
