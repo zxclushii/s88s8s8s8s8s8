@@ -4,6 +4,7 @@
 // Где мы — в адресе страницы (#mp3/liked), поэтому работает «назад» и ссылку прямо на плейлист можно кинуть.
 
 import { byId } from "./dom.js";
+import { showExit } from "./exit.js";
 import { renderFolders } from "./folders.js";
 import { hashFor, pathFromHash, relativePath, samePath } from "./paths.js";
 import { mountPlayer } from "./player.js";
@@ -34,7 +35,20 @@ const UP = { name: "..", label: "наверх" };
 /** @type {Path} */
 let current = [];
 
-const terminal = createTerminal({ root, onCd: go, trails: createTrails() });
+const terminal = createTerminal({
+    root,
+    onCd: go,
+    effects: {
+        trails: createTrails(),
+        light: {
+            state: () => document.body.classList.contains("light-stars"),
+            set: (on) => document.body.classList.toggle("light-stars", on),
+        },
+        exit: showExit,
+        // плеер создаётся ниже; команды приходят, когда страница уже собрана
+        music: (action) => player.command(action),
+    },
+});
 
 /**
  * Клик по папке печатает в терминал cd — тот же, что набрал бы человек, — и терминал ведёт дальше.

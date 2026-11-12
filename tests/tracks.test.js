@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { buildPlaylists, splitTrackName } from "../tracks.js";
+import { buildPlaylists, describeTrack, findTrack, splitTrackName } from "../tracks.js";
 
 /** @param {string[]} blobs @param {string[]} [trees] */
 function tree(blobs, trees = []) {
@@ -76,5 +76,39 @@ describe("splitTrackName", () => {
             title: "Connect - TV size",
         });
         assert.deepEqual(splitTrackName("sushi"), { artist: "", title: "sushi" });
+    });
+});
+
+describe("поиск трека для play", () => {
+    /** @param {string} artist @param {string} title */
+    const track = (artist, title) => ({ artist, title, file: `${artist} - ${title}.mp3`, src: "", cover: null });
+    const playlists = [
+        {
+            name: "liked",
+            tracks: [track("Lil Peep", "save that shit"), track("godtearz", "blessing"), track("lushii", "sushi")],
+        },
+        { name: "night", tracks: [track("rizza", "двашки"), track("Yung Angel", "SAVE ME")] },
+    ];
+
+    it("точное название важнее совпадения в начале и внутри", () => {
+        assert.deepEqual(findTrack(playlists, "SAVE ME"), { playlist: 1, index: 1 });
+        assert.deepEqual(findTrack(playlists, "save"), { playlist: 0, index: 0 });
+    });
+
+    it("ищет без учёта регистра, по куску названия и по артисту", () => {
+        assert.deepEqual(findTrack(playlists, "BLESS"), { playlist: 0, index: 1 });
+        assert.deepEqual(findTrack(playlists, "двашки"), { playlist: 1, index: 0 });
+        assert.deepEqual(findTrack(playlists, "lushii"), { playlist: 0, index: 2 });
+    });
+
+    it("ничего не нашёл или пусто — null", () => {
+        assert.equal(findTrack(playlists, "нет такого"), null);
+        assert.equal(findTrack(playlists, "   "), null);
+        assert.equal(findTrack([], "sushi"), null);
+    });
+
+    it("describeTrack: название — артист; без артиста — одно название", () => {
+        assert.equal(describeTrack(track("godtearz", "blessing")), "blessing — godtearz");
+        assert.equal(describeTrack(track("", "intro")), "intro");
     });
 });

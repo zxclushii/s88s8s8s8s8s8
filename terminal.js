@@ -1,6 +1,6 @@
 // @ts-check
 // Терминал внизу экрана: строка ввода, ответы над ней, история команд стрелками, Tab дописывает имя папки.
-// Что делают сами команды — в commands.js; сюда приходят строки ответа и папка, куда перейти.
+// Что делают сами команды — в commands.js; сюда приходят строки ответа и что сделать странице.
 
 import { run } from "./commands.js";
 import { byId } from "./dom.js";
@@ -9,6 +9,16 @@ import { folderAt, formatPath, resolve } from "./paths.js";
 /** @typedef {import("./paths.js").Folder} Folder */
 /** @typedef {import("./paths.js").Path} Path */
 /** @typedef {import("./trails.js").TrailSwitch} TrailSwitch */
+/** @typedef {import("./commands.js").PlayerAction} PlayerAction */
+
+/**
+ * Что команды делают со страницей.
+ * @typedef {object} Effects
+ * @property {TrailSwitch} trails след за курсором: star_cursive и heart_cursive
+ * @property {{ state: () => boolean, set: (on: boolean) => void }} light сияние звёзд: light_star
+ * @property {() => void} exit красная надпись на весь экран
+ * @property {(action: PlayerAction) => string[]} music команда плееру; плеер сам говорит, что вышло
+ */
 
 const HISTORY_LIMIT = 50;
 // на экране видно три последние строки (это делает CSS), а в памяти держим с запасом
@@ -17,10 +27,10 @@ const COMPLETABLE = /^(\s*(?:cd|chdir|dir|ls)\s+)(.*)$/i;
 
 /**
  * Подключает терминал к разметке из index.html.
- * @param {{ root: Folder, onCd: (path: Path) => void, trails: TrailSwitch }} options onCd — команда просит
- *     перейти в папку; trails — след за курсором, его включают star_cursive и heart_cursive
+ * @param {{ root: Folder, onCd: (path: Path) => void, effects: Effects }} options onCd — команда просит
+ *     перейти в папку; effects — всё остальное, что команды делают со страницей
  */
-export function createTerminal({ root, onCd, trails }) {
+export function createTerminal({ root, onCd, effects }) {
     const box = byId("term-box", HTMLElement);
     const log = byId("term-log", HTMLElement);
     const form = byId("term-form", HTMLFormElement);
@@ -65,15 +75,28 @@ export function createTerminal({ root, onCd, trails }) {
         cursor = past.length;
         draft = "";
 
-        const result = run(line, { root, cwd, trails: trails.state(), calm: trails.calm() });
+        const result = run(line, {
+            root,
+            cwd,
+            trails: effects.trails.state(),
+            calm: effects.trails.calm(),
+            light: effects.light.state(),
+        });
         if (result.clear) {
             log.replaceChildren();
         }
-        for (const text of result.lines) {
+        const answer = result.player ? [...result.lines, ...effects.music(result.player)] : result.lines;
+        for (const text of answer) {
             print(text, "out");
         }
         if (result.trail) {
-            trails.set(result.trail.trail, result.trail.on);
+            effects.trails.set(result.trail.trail, result.trail.on);
+        }
+        if (result.light !== undefined) {
+            effects.light.set(result.light);
+        }
+        if (result.exit) {
+            effects.exit();
         }
         if (result.cd) {
             onCd(result.cd);

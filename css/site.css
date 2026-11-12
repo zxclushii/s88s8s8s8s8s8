@@ -77,8 +77,8 @@
     --gothic: "UnifrakturMaguntia", "Cormorant Garamond", serif;
 
     --gut: 7.6vw;
-    /* восьмиконечная звезда из спрайта — маской, для меню work */
-    --star-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-100 -100 200 200'%3E%3Cpath d='M-6.9 16.6L0 100L6.9 16.6L31.1 31.1L16.6 6.9L72 0L16.6 -6.9L31.1 -31.1L6.9 -16.6L0 -100L-6.9 -16.6L-31.1 -31.1L-16.6 -6.9L-72 0L-16.6 6.9L-31.1 31.1L-6.9 16.6Z'/%3E%3C/svg%3E");
+    /* цвет крови — только для надписи exit */
+    --blood: #c0121f;
     /* терминал: кегль, отступ от низа и полная высота — подпись, поля и четыре строки (три ответа и ввод) */
     --term-font: clamp(15px, 0.92vw, 18px);
     --term-bottom: 7.5vh;
@@ -949,14 +949,22 @@ body[data-screen="work"] .term::before {
     color: var(--white);
 }
 
+.chain-star {
+    display: none;
+    width: 17px;
+    height: 17px;
+    fill: var(--white);
+}
+
 .chain button[aria-current="true"] .chain-mark {
     width: 17px;
     height: 17px;
     margin-left: 0;
-    border-radius: 0;
-    background: var(--white);
-    -webkit-mask: var(--star-mask) center / contain no-repeat;
-    mask: var(--star-mask) center / contain no-repeat;
+    background: none;
+}
+
+.chain button[aria-current="true"] .chain-star {
+    display: block;
 }
 
 @media (hover: hover) {
@@ -1334,6 +1342,80 @@ body[data-screen="work"] .term::before {
     right: 2vw;
     width: 21vw;
     height: auto;
+}
+
+/* light_star: у всех звёзд белое сияние. Звёзды — svg-элементы получают svg-фильтр из спрайта,
+   а целые svg и картинки — drop-shadow: так работает во всех браузерах */
+.wm-glow {
+    display: none;
+}
+
+.light-stars .wm-glow {
+    display: inline;
+}
+
+.light-stars .wm-glow,
+.light-stars .folder-star,
+.light-stars .plot-star {
+    filter: url(#star-glow);
+}
+
+.light-stars .track-star,
+.light-stars .btn-toggle .mark,
+.light-stars .now-star,
+.light-stars .chain-star,
+.light-stars .key-star,
+.light-stars .deco-sparkle,
+.light-stars .deco-stars3,
+.light-stars .deco-chain,
+.light-stars .deco-stars-top {
+    filter: drop-shadow(0 0 3px rgb(232 230 225 / 0.9)) drop-shadow(0 0 10px rgb(232 230 225 / 0.55));
+}
+
+/* exit: на весь экран красным переспрашивает, держится и медленно гаснет (exit.js убирает её через 3,6 с) */
+.exit-scare {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6vw;
+    background: rgb(10 10 10 / 0.72);
+    color: var(--blood);
+    text-align: center;
+    pointer-events: none;
+    animation: exit-fade 3.6s ease-in forwards;
+}
+
+.exit-big {
+    margin: 0;
+    font: italic 400 clamp(96px, 19vw, 360px) / 0.9 var(--serif);
+}
+
+.exit-small {
+    margin: 2vh 0 0;
+    font: italic 400 clamp(30px, 4.6vw, 88px) / 1 var(--serif);
+}
+
+@keyframes exit-fade {
+    0% {
+        opacity: 0;
+    }
+    4%,
+    35% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .exit-scare {
+        animation: none;
+    }
 }
 
 /* след за курсором (star_cursive, heart_cursive): поверх всего и не мешает кликам */

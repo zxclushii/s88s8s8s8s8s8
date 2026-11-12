@@ -90,6 +90,8 @@ export function createTrails() {
         particles = particles.filter((particle) => particle.age < particle.life);
         context.clearRect(0, 0, window.innerWidth, window.innerHeight);
         context.fillStyle = COLOR;
+        // light_star on — у звёздочек из следа тоже сияние; размытие тени считается в пикселях холста
+        const glow = document.body.classList.contains("light-stars") ? 9 * (window.devicePixelRatio || 1) : 0;
         for (const particle of particles) {
             particle.vy += GRAVITY * dt;
             particle.x += particle.vx * dt;
@@ -103,6 +105,8 @@ export function createTrails() {
             // сердечко только чуть покачивается, звезда крутится
             context.rotate(particle.kind === "star" ? particle.angle : Math.sin(particle.angle) * 0.35);
             context.scale(scale, scale);
+            context.shadowColor = COLOR;
+            context.shadowBlur = particle.kind === "star" ? glow : 0;
             context.fill(shapes[particle.kind]);
             context.restore();
         }

@@ -142,7 +142,74 @@ describe("star_cursive и heart_cursive", () => {
     });
 
     it("есть в справке", () => {
-        assert.ok(HELP.some((line) => line.startsWith("star_cursive ")));
-        assert.ok(HELP.some((line) => line.startsWith("heart_cursive ")));
+        assert.ok(HELP.some((line) => line.includes("star_cursive")));
+        assert.ok(HELP.some((line) => line.includes("heart_cursive")));
+    });
+});
+
+describe("музыка", () => {
+    it("play, pause, next, prev и np уходят плееру, ответ пишет он сам", () => {
+        assert.deepEqual(run("play", atRoot), { lines: [], player: { action: "play" } });
+        assert.deepEqual(run("PAUSE", atRoot), { lines: [], player: { action: "pause" } });
+        assert.deepEqual(run("next", atRoot), { lines: [], player: { action: "next" } });
+        assert.deepEqual(run("prev", atRoot), { lines: [], player: { action: "prev" } });
+        assert.deepEqual(run("np", atRoot), { lines: [], player: { action: "np" } });
+    });
+
+    it("play с названием ищет трек; пробелы внутри названия сохраняются", () => {
+        assert.deepEqual(run("play   save that shit ", atRoot), {
+            lines: [],
+            player: { action: "play", query: "save that shit" },
+        });
+    });
+});
+
+describe("date, time, whoami", () => {
+    const now = new Date(2026, 10, 12, 9, 5, 3, 427);
+
+    it("date и time — как в cmd, с сотыми у времени", () => {
+        assert.deepEqual(run("date", { ...atRoot, now }), { lines: ["Текущая дата: 12.11.2026"] });
+        assert.deepEqual(run("time", { ...atRoot, now }), { lines: ["Текущее время: 09:05:03,42"] });
+    });
+
+    it("whoami — гость на диске angel", () => {
+        assert.deepEqual(run("whoami", atRoot), { lines: [MESSAGES.whoami] });
+    });
+});
+
+describe("light_star", () => {
+    it("on и off включают и выключают сияние; без аргумента — сказать, сияют ли", () => {
+        assert.deepEqual(run("light_star on", atRoot), { lines: [MESSAGES.lightOn], light: true });
+        assert.deepEqual(run("light_star OFF", { ...atRoot, light: true }), {
+            lines: [MESSAGES.lightOff],
+            light: false,
+        });
+        assert.deepEqual(run("light_star", { ...atRoot, light: true }), { lines: [MESSAGES.lightOn] });
+        assert.deepEqual(run("light_star", atRoot), { lines: [MESSAGES.lightOff] });
+    });
+
+    it("на другое слово подсказывает, как писать", () => {
+        assert.deepEqual(run("light_star please", atRoot), { lines: [MESSAGES.trailUsage("light_star")] });
+    });
+});
+
+describe("exit", () => {
+    it("ничего не печатает, а просит показать надпись", () => {
+        assert.deepEqual(run("exit", atRoot), { lines: [], exit: true });
+    });
+
+    it("в справке его нет — это сюрприз", () => {
+        assert.ok(HELP.every((line) => !line.includes("exit")));
+    });
+});
+
+describe("справка", () => {
+    it("ровно три строки — столько видно на экране, и все команды в ней есть", () => {
+        assert.equal(HELP.length, 3);
+        const text = HELP.join(" ");
+        for (const command of ["cd", "dir", "cls", "play", "pause", "next", "prev", "np", "date", "time", "whoami"]) {
+            assert.ok(text.includes(command), command);
+        }
+        assert.ok(text.includes("light_star"));
     });
 });

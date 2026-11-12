@@ -182,6 +182,41 @@ function isTreeEntry(entry) {
     );
 }
 
+/**
+ * «blessing — godtearz»; без артиста — одно название.
+ * @param {Track} track
+ */
+export function describeTrack(track) {
+    return track.artist ? `${track.title} — ${track.artist}` : track.title;
+}
+
+/**
+ * Трек для play по куску названия, без учёта регистра: сначала точное название, потом начало названия,
+ * потом вхождение в «Артист - Название». Плейлисты — в их порядке, liked первым.
+ * @param {Playlist[]} playlists
+ * @param {string} query
+ * @returns {{ playlist: number, index: number } | null}
+ */
+export function findTrack(playlists, query) {
+    const wanted = query.trim().toLowerCase();
+    if (wanted === "") {
+        return null;
+    }
+    const all = playlists.flatMap((playlist, playlistIndex) =>
+        playlist.tracks.map((track, index) => ({
+            playlist: playlistIndex,
+            index,
+            title: track.title.toLowerCase(),
+            full: `${track.artist} - ${track.title}`.toLowerCase(),
+        })),
+    );
+    const hit =
+        all.find((track) => track.title === wanted) ??
+        all.find((track) => track.title.startsWith(wanted)) ??
+        all.find((track) => track.full.includes(wanted));
+    return hit ? { playlist: hit.playlist, index: hit.index } : null;
+}
+
 /** @returns {Promise<Playlist[]>} */
 export async function loadPlaylists() {
     return buildPlaylists(await fetchTree());

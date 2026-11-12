@@ -2,10 +2,13 @@
 // Логика плеера: плейлисты с GitHub, аудио, перемешивание и повтор. Как это выглядит — в player-view.js.
 // Показанный плейлист и тот, что играет, — разные вещи: можно листать папки, не прерывая музыку.
 
-import { createPlayerView } from "./player-view.js";
-import { API_URL, DEFAULT_PLAYLIST, PlayerError, loadPlaylists } from "./tracks.js";
+import { MESSAGES } from "./commands.js";
+import { createPlayerView, formatTime } from "./player-view.js";
+import { API_URL, DEFAULT_PLAYLIST, PlayerError, describeTrack, findTrack, loadPlaylists } from "./tracks.js";
 
 /** @typedef {import("./tracks.js").Playlist} Playlist */
+/** @typedef {import("./tracks.js").Track} Track */
+/** @typedef {import("./commands.js").PlayerAction} PlayerAction */
 /** @typedef {import("./player-view.js").RepeatMode} RepeatMode */
 
 /** @type {RepeatMode[]} */
@@ -229,20 +232,34 @@ export function mountPlayer({ onPlaylists }) {
     }
 
     /**
-     * Клик по треку в списке. Если это другой плейлист — он становится очередью.
-     * @param {number} index номер трека в показанном плейлисте
+     * Включить трек из любого плейлиста. Если это другой плейлист — он становится очередью.
+     * @param {number} playlistIndex
+     * @param {number} index номер трека в этом плейлисте
      */
-    function select(index) {
-        const tracks = playlists?.[viewed]?.tracks ?? [];
+    function startFrom(playlistIndex, index) {
+        const tracks = playlists?.[playlistIndex]?.tracks ?? [];
         if (index < 0 || index >= tracks.length) {
             return;
         }
-        if (queue !== viewed) {
-            queue = viewed;
+        if (queue !== playlistIndex) {
+            queue = playlistIndex;
             order = shuffle ? shuffledOrder(tracks.length, index) : identityOrder(tracks.length);
         }
         load(order.indexOf(index));
         void play();
+    }
+
+    /**
+     * Клик по треку в списке.
+     * @param {number} index номер трека в показанном плейлисте
+     */
+    function select(index) {
+        startFrom(viewed, index);
+    }
+
+    /** @returns {Track | null} трек, который стоит в плеере; null — играть нечего */
+    function currentTrack() {
+        return order.length > 0 ? (queueTracks()[order[position]] ?? null) : null;
     }
 
     function toggleShuffle() {
@@ -392,6 +409,58 @@ export function mountPlayer({ onPlaylists }) {
             viewed = found !== -1 ? found : Math.max(fallback, 0);
             renderViewed();
             return playlists[viewed].name;
+        },
+
+        /**
+         * Команда из терминала: play, pause, next, prev, np. Возвращает, что напечатать в ответ.
+         * @param {PlayerAction} command
+         * @returns {string[]}
+         */
+        command({ action, query }) {
+            if (!playlists) {
+                return [MESSAGES.notLoaded];
+            }
+            if (action === "play" && query !== undefined) {
+                const found = findTrack(playlists, query);
+                if (!found) {
+                    return [`Трек «${query}» не найден.`];
+                }
+                startFrom(found.playlist, found.index);
+                return [`Играет: ${describeTrack(playlists[found.playlist].tracks[found.index])}`];
+            }
+            const track = currentTrack();
+            if (!track) {
+                return ["Играть нечего: плейлист пуст."];
+            }
+            switch (action) {
+                case "play":
+                    void play();
+                    return [`Играет: ${describeTrack(track)}`];
+                case "pause":
+                    if (audio.paused) {
+                        return ["Уже на паузе."];
+                    }
+                    audio.pause();
+                    return [`Пауза: ${describeTrack(track)}`];
+                case "next": {
+                    step(1);
+                    const next = currentTrack();
+                    return next ? [`Играет: ${describeTrack(next)}`] : [];
+                }
+                case "prev": {
+                    // как кнопка: после 3 секунд трек сначала отматывается в начало
+                    const restart = audio.currentTime > RESTART_THRESHOLD_SECONDS;
+                    previous();
+                    const now = currentTrack();
+                    return now ? [`${restart ? "С начала" : "Играет"}: ${describeTrack(now)}`] : [];
+                }
+                case "np":
+                    return [
+                        `${audio.paused ? "Пауза" : "Играет"}: ${describeTrack(track)} · ` +
+                            `${formatTime(audio.currentTime)} из ${formatTime(audio.duration)}`,
+                    ];
+            }
+            return [];
         },
     };
 }
