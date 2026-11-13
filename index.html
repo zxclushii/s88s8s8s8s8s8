@@ -591,6 +591,220 @@
             </article>
         </section>
 
+        <!-- work\elept1c curv3ss — программа к лабе 10: три вкладки, переключаются цепочкой слева -->
+        <section class="ec" id="ec" aria-label="elept1c curv3ss">
+            <nav class="ec-rail" aria-label="Вкладки elept1c curv3ss">
+                <ul class="folders folders-small" id="ec-folders" aria-label="Папки"></ul>
+                <ol class="chain ec-tabs" id="ec-tabs">
+                    <li>
+                        <button type="button" data-tab="plane" aria-controls="ec-plane" aria-current="true">
+                            <span class="chain-mark"
+                                ><svg class="chain-star" aria-hidden="true"><use href="#star" /></svg></span
+                            ><span class="chain-n">1</span><span class="chain-name">на плоскости</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" data-tab="field" aria-controls="ec-field">
+                            <span class="chain-mark"
+                                ><svg class="chain-star" aria-hidden="true"><use href="#star" /></svg></span
+                            ><span class="chain-n">2</span><span class="chain-name">по модулю p</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" data-tab="params" aria-controls="ec-params">
+                            <span class="chain-mark"
+                                ><svg class="chain-star" aria-hidden="true"><use href="#star" /></svg></span
+                            ><span class="chain-n">3</span><span class="chain-name">параметры</span>
+                        </button>
+                    </li>
+                </ol>
+            </nav>
+
+            <section class="ec-panel" id="ec-plane" aria-labelledby="ec-plane-h">
+                <header class="ec-head">
+                    <h2 class="ec-h" id="ec-plane-h">на плоскости</h2>
+                    <p class="ec-meta">лаба 10 · сложение точек на обычной плоскости</p>
+                    <p class="ec-eq" id="plane-eq">y² = x³ − x + 2</p>
+                </header>
+                <figure class="ec-figure">
+                    <svg
+                        class="ec-plot"
+                        id="plane-plot"
+                        viewBox="0 0 600 780"
+                        preserveAspectRatio="xMinYMin meet"
+                        role="img"
+                    ></svg>
+                </figure>
+                <div class="ec-side">
+                    <div class="ec-fields">
+                        <label class="ec-field">
+                            <span>a</span>
+                            <input
+                                id="plane-a"
+                                type="number"
+                                min="-5"
+                                max="5"
+                                step="0.1"
+                                value="-1"
+                                inputmode="decimal"
+                            />
+                            <input
+                                class="ec-range"
+                                id="plane-a-range"
+                                type="range"
+                                min="-5"
+                                max="5"
+                                step="0.1"
+                                value="-1"
+                                aria-label="a ползунком"
+                            />
+                        </label>
+                        <label class="ec-field">
+                            <span>b</span>
+                            <input
+                                id="plane-b"
+                                type="number"
+                                min="-5"
+                                max="5"
+                                step="0.1"
+                                value="2"
+                                inputmode="decimal"
+                            />
+                            <input
+                                class="ec-range"
+                                id="plane-b-range"
+                                type="range"
+                                min="-5"
+                                max="5"
+                                step="0.1"
+                                value="2"
+                                aria-label="b ползунком"
+                            />
+                        </label>
+                    </div>
+                    <p class="ec-label" id="plane-kinds-label">три типа кривой</p>
+                    <div class="ec-kinds" id="plane-kinds" role="group" aria-labelledby="plane-kinds-label">
+                        <button type="button" data-a="-1" data-b="2" data-kind="one" aria-pressed="true">
+                            <svg viewBox="0 0 120 84" aria-hidden="true"></svg>одна ветка
+                        </button>
+                        <button type="button" data-a="-3" data-b="1" data-kind="two" aria-pressed="false">
+                            <svg viewBox="0 0 120 84" aria-hidden="true"></svg>овал и ветка
+                        </button>
+                        <button type="button" data-a="-3" data-b="2" data-kind="singular" aria-pressed="false">
+                            <svg viewBox="0 0 120 84" aria-hidden="true"></svg>особая: петля
+                        </button>
+                    </div>
+                    <p class="ec-kind" id="plane-kind"></p>
+                    <p class="ec-label" id="plane-modes-label">что сложить</p>
+                    <div class="ec-modes" id="plane-modes" role="group" aria-labelledby="plane-modes-label">
+                        <button type="button" data-mode="add" aria-pressed="true">P + Q</button>
+                        <button type="button" data-mode="double" aria-pressed="false">P + P</button>
+                        <button type="button" data-mode="inverse" aria-pressed="false">P + (−P)</button>
+                    </div>
+                    <dl class="ec-out" id="plane-out"></dl>
+                    <p class="ec-note" id="plane-note" aria-live="polite"></p>
+                </div>
+            </section>
+
+            <section class="ec-panel ec-field-panel" id="ec-field" aria-labelledby="ec-field-h" hidden>
+                <header class="ec-head">
+                    <h2 class="ec-h" id="ec-field-h">по модулю <span data-p>29</span></h2>
+                    <p class="ec-meta">лаба 10 · та же кривая, только числа идут по кругу</p>
+                    <p class="ec-eq">
+                        <span data-equation>y² = x³ − x + 2</span>
+                        <span class="ec-eq-mod">(mod <span data-p>29</span>)</span>
+                    </p>
+                </header>
+                <figure class="ec-figure">
+                    <svg
+                        class="ec-plot"
+                        id="field-plot"
+                        viewBox="0 0 640 700"
+                        preserveAspectRatio="xMinYMin meet"
+                        role="img"
+                    ></svg>
+                    <div class="ec-table" id="field-table" hidden></div>
+                    <p class="ec-label">
+                        <span id="field-count">29 точек и O</span> ·
+                        <button type="button" class="ec-toggle" id="field-view" aria-pressed="false">
+                            таблица сложения
+                        </button>
+                    </p>
+                    <div class="ec-points" id="field-points" aria-label="Точки кривой"></div>
+                </figure>
+                <div class="ec-side">
+                    <div class="ec-fields">
+                        <label class="ec-field">
+                            <span>a</span>
+                            <input data-curve="a" type="number" step="1" value="-1" inputmode="numeric" />
+                        </label>
+                        <label class="ec-field">
+                            <span>b</span>
+                            <input data-curve="b" type="number" step="1" value="2" inputmode="numeric" />
+                        </label>
+                        <label class="ec-field">
+                            <span>p</span>
+                            <input
+                                data-curve="p"
+                                type="number"
+                                min="5"
+                                max="97"
+                                step="1"
+                                value="29"
+                                inputmode="numeric"
+                            />
+                        </label>
+                    </div>
+                    <p class="ec-label" id="field-modes-label">что сложить</p>
+                    <div class="ec-modes" id="field-modes" role="group" aria-labelledby="field-modes-label">
+                        <button type="button" data-mode="add" aria-pressed="true">P + Q</button>
+                        <button type="button" data-mode="double" aria-pressed="false">P + P</button>
+                        <button type="button" data-mode="inverse" aria-pressed="false">P + (−P)</button>
+                        <button type="button" data-mode="orbit" aria-pressed="false">все kP</button>
+                    </div>
+                    <dl class="ec-out" id="field-out"></dl>
+                    <p class="ec-note" id="field-note" aria-live="polite"></p>
+                </div>
+            </section>
+
+            <section class="ec-panel ec-params" id="ec-params" aria-labelledby="ec-params-h" hidden>
+                <header class="ec-head">
+                    <h2 class="ec-h" id="ec-params-h">параметры</h2>
+                    <p class="ec-meta">лаба 10 · как выбирают кривую для шифра — по шагам из методички</p>
+                    <p class="ec-eq">
+                        <span data-equation>y² = x³ − x + 2</span>
+                        <span class="ec-eq-mod">(mod <span data-p>29</span>)</span>
+                    </p>
+                </header>
+                <div class="ec-fields">
+                    <label class="ec-field">
+                        <span>a</span>
+                        <input data-curve="a" type="number" step="1" value="-1" inputmode="numeric" />
+                    </label>
+                    <label class="ec-field">
+                        <span>b</span>
+                        <input data-curve="b" type="number" step="1" value="2" inputmode="numeric" />
+                    </label>
+                    <label class="ec-field">
+                        <span>p</span>
+                        <input data-curve="p" type="number" min="5" max="97" step="1" value="29" inputmode="numeric" />
+                    </label>
+                </div>
+                <ol class="ec-steps" id="params-steps"></ol>
+                <figure class="ec-figure">
+                    <svg
+                        class="ec-plot"
+                        id="params-plot"
+                        viewBox="0 0 640 700"
+                        preserveAspectRatio="xMinYMin meet"
+                        role="img"
+                    ></svg>
+                    <p class="ec-note" id="params-note"></p>
+                    <svg class="ec-hasse" id="params-hasse" viewBox="0 0 420 76" role="img"></svg>
+                </figure>
+            </section>
+        </section>
+
         <section class="term" aria-label="angel terminal">
             <label class="term-name" for="term-input">angel terminal</label>
             <div class="term-box" id="term-box">

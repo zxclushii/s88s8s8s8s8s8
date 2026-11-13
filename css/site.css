@@ -128,7 +128,8 @@ body {
 
 .home,
 .mp3,
-.work {
+.work,
+.ec {
     position: fixed;
     inset: 0;
     transition:
@@ -138,7 +139,8 @@ body {
 
 body:not([data-screen="home"]) .home,
 body:not([data-screen="mp3"]) .mp3,
-body:not([data-screen="work"]) .work {
+body:not([data-screen="work"]) .work,
+body:not([data-screen="ec"]) .ec {
     opacity: 0;
     visibility: hidden;
 }
@@ -863,21 +865,25 @@ body:not([data-screen="work"]) .work {
     scrollbar-width: thin;
 }
 
-/* в work терминал — одна строка у самого низа, а лента уходит под полосу фона за ним */
-body[data-screen="work"] {
+/* в work и в elept1c curv3ss терминал — одна строка у самого низа, а лента уходит под полосу фона за ним */
+body[data-screen="work"],
+body[data-screen="ec"] {
     --term-bottom: 18px;
 }
 
-body[data-screen="work"] .term-name {
+body[data-screen="work"] .term-name,
+body[data-screen="ec"] .term-name {
     display: none;
 }
 
-/* ответы терминала в work видны, только пока в нём печатают: остальное время — одна строка ввода */
-body[data-screen="work"] .term-box:not(:focus-within) .term-log {
+/* ответы терминала там видны, только пока в нём печатают: остальное время — одна строка ввода */
+body[data-screen="work"] .term-box:not(:focus-within) .term-log,
+body[data-screen="ec"] .term-box:not(:focus-within) .term-log {
     display: none;
 }
 
-body[data-screen="work"] .term::before {
+body[data-screen="work"] .term::before,
+body[data-screen="ec"] .term::before {
     content: "";
     position: absolute;
     z-index: -1;
@@ -1356,7 +1362,8 @@ body[data-screen="work"] .term::before {
 
 .light-stars .wm-glow,
 .light-stars .folder-star,
-.light-stars .plot-star {
+.light-stars .plot-star,
+.light-stars .ec-star {
     filter: url(#star-glow);
 }
 
@@ -1946,5 +1953,713 @@ body[data-screen="work"] .term::before {
     .chibi {
         width: 52vw;
         margin: 4vh 0 0 auto;
+    }
+}
+
+/* elept1c curv3ss — программа к лабе 10 в папке work: вкладки цепочкой слева, рисунок и пульт рядом */
+
+.ec {
+    --rail: 21vw;
+    /* рисунок по высоте помещается в экран над терминалом */
+    --plot-max: calc(100vh - var(--term-bottom) - 150px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: var(--s3) transparent;
+    scrollbar-width: thin;
+}
+
+.ec-rail {
+    position: fixed;
+    top: 5vh;
+    left: var(--gut);
+    z-index: 1;
+    width: calc(var(--rail) - var(--gut) - 1.5vw);
+}
+
+.ec-rail .folders-small {
+    position: static;
+}
+
+.ec-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 29vw, 460px);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+        "figure head"
+        "figure side";
+    column-gap: 4vw;
+    margin-left: var(--rail);
+    padding: 5vh var(--gut) calc(var(--term-bottom) + 96px) 0;
+}
+
+.ec-panel[hidden] {
+    display: none;
+}
+
+.ec-head {
+    grid-area: head;
+}
+
+.ec-figure {
+    grid-area: figure;
+    min-width: 0;
+    margin: 0;
+}
+
+.ec-side {
+    grid-area: side;
+}
+
+.ec-h {
+    margin: 0;
+    color: var(--white);
+    font: italic 400 clamp(48px, 4.6vw, 84px) / 0.92 var(--serif);
+}
+
+.ec-meta {
+    margin: 1.6vh 0 0 0.3vw;
+    color: var(--grey);
+    font: 400 15px/1.4 var(--sans);
+}
+
+.ec-eq {
+    margin: 2.6vh 0 0;
+    color: var(--white);
+    font: italic 400 clamp(30px, 2.5vw, 44px) / 1.1 var(--serif);
+}
+
+.ec-eq-mod {
+    color: var(--white-2);
+}
+
+/* поля a, b, p — матовые плашки, как поля секретов в ленте лабы 9 */
+.ec-fields {
+    display: grid;
+    grid-auto-columns: 1fr;
+    grid-auto-flow: column;
+    gap: 10px;
+    margin-top: 2.4vh;
+}
+
+.ec-field {
+    display: block;
+    padding: 12px 16px 10px;
+    background: var(--s1);
+    cursor: text;
+    transition: background 0.2s;
+}
+
+.ec-field:focus-within {
+    background: var(--s2);
+}
+
+.ec-field > span {
+    display: block;
+    color: var(--grey);
+    font: 400 13px var(--sans);
+}
+
+.ec-field input[type="number"] {
+    width: 100%;
+    margin-top: 2px;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: none;
+    color: var(--white);
+    font: italic 400 32px/1.1 var(--serif);
+    caret-color: var(--white);
+    appearance: textfield;
+}
+
+.ec-field input[type="number"]::-webkit-inner-spin-button,
+.ec-field input[type="number"]::-webkit-outer-spin-button {
+    margin: 0;
+    appearance: none;
+}
+
+/* ползунок: пунктирная нить, как цепочка в меню, а бегунок — звезда */
+.ec-range {
+    display: block;
+    width: 100%;
+    height: 20px;
+    margin: 6px 0 0;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+    appearance: none;
+}
+
+.ec-range::-webkit-slider-runnable-track {
+    height: 1px;
+    border: 0;
+    border-top: 1px dotted var(--grey);
+    background: none;
+}
+
+.ec-range::-moz-range-track {
+    height: 0;
+    border: 0;
+    border-top: 1px dotted var(--grey);
+    background: none;
+}
+
+.ec-range::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+    margin-top: -9px;
+    border: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-100 -100 200 200'%3E%3Cpath fill='%23e8e6e1' d='M-6.9 16.6L0 100L6.9 16.6L31.1 31.1L16.6 6.9L72 0L16.6 -6.9L31.1 -31.1L6.9 -16.6L0 -100L-6.9 -16.6L-31.1 -31.1L-16.6 -6.9L-72 0L-16.6 6.9L-31.1 31.1L-6.9 16.6Z'/%3E%3C/svg%3E")
+        center / contain no-repeat;
+    appearance: none;
+}
+
+.ec-range::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border: 0;
+    border-radius: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-100 -100 200 200'%3E%3Cpath fill='%23e8e6e1' d='M-6.9 16.6L0 100L6.9 16.6L31.1 31.1L16.6 6.9L72 0L16.6 -6.9L31.1 -31.1L6.9 -16.6L0 -100L-6.9 -16.6L-31.1 -31.1L-16.6 -6.9L-72 0L-16.6 6.9L-31.1 31.1L-6.9 16.6Z'/%3E%3C/svg%3E")
+        center / contain no-repeat;
+}
+
+.ec-range:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: 3px;
+}
+
+.ec-label {
+    margin: 2.4vh 0 8px;
+    color: var(--grey);
+    font: 400 13px var(--sans);
+}
+
+/* три типа кривой — маленькие рисунки вместо слов на кнопках */
+.ec-kinds {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.ec-kinds button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--grey);
+    font: 400 13px/1.25 var(--sans);
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.ec-kinds svg {
+    display: block;
+    width: 100%;
+    height: 64px;
+    margin-bottom: 6px;
+    background: var(--s1);
+    transition: background 0.2s;
+}
+
+.ec-kinds path {
+    fill: none;
+    stroke: var(--grey);
+    stroke-width: 1.4;
+    stroke-linejoin: round;
+}
+
+.ec-kinds circle {
+    fill: var(--grey);
+}
+
+.ec-kinds button[aria-pressed="true"] {
+    color: var(--white);
+}
+
+.ec-kinds button[aria-pressed="true"] svg {
+    background: var(--s2);
+}
+
+.ec-kinds button[aria-pressed="true"] path {
+    stroke: var(--white);
+}
+
+.ec-kinds button[aria-pressed="true"] circle {
+    fill: var(--white);
+}
+
+.ec-kinds button:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: 3px;
+}
+
+.ec-kind {
+    margin: 10px 0 0;
+    color: var(--grey);
+    font: 400 13px/1.45 var(--sans);
+}
+
+.ec-modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ec-modes button {
+    padding: 7px 13px;
+    border: 0;
+    background: var(--s2);
+    color: var(--white-2);
+    font: 400 13px var(--sans);
+    cursor: pointer;
+    transition:
+        background 0.2s,
+        color 0.2s;
+}
+
+.ec-modes button[aria-pressed="true"] {
+    background: var(--white);
+    color: var(--ink);
+}
+
+.ec-modes button:disabled {
+    background: var(--s1);
+    color: var(--grey);
+    cursor: default;
+}
+
+.ec-modes button:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: 3px;
+}
+
+@media (hover: hover) {
+    .ec-kinds button:hover {
+        color: var(--white-2);
+    }
+
+    .ec-modes button:not([aria-pressed="true"], :disabled):hover {
+        color: var(--white);
+    }
+}
+
+.ec-out {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 18px;
+    margin: 2.4vh 0 0;
+}
+
+.ec-out dt {
+    color: var(--grey);
+    font: 400 13px var(--sans);
+}
+
+.ec-out dd {
+    margin: 4px 0 0;
+    color: var(--white);
+    font: italic 400 24px/1.1 var(--serif);
+    overflow-wrap: anywhere;
+}
+
+.ec-note {
+    margin: 2vh 0 0;
+    color: var(--grey);
+    font: 400 14px/1.5 var(--sans);
+}
+
+.ec-toggle {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--white-2);
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.ec-toggle:disabled {
+    color: var(--grey);
+    text-decoration: none;
+    cursor: default;
+}
+
+/* список точек — как таблица точек в desmos, только в строку */
+.ec-points {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 10px;
+    color: var(--grey);
+    font: italic 400 17px/1.4 var(--serif);
+}
+
+.ec-points button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--white-2);
+    font: inherit;
+    cursor: pointer;
+}
+
+.ec-points button[aria-pressed="true"] {
+    color: var(--white);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.ec-points button:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: 2px;
+}
+
+/* таблица сложения: строка + столбец = клетка; без линеек, крест P и Q подсвечен фоном */
+.ec-table {
+    max-height: var(--plot-max);
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: var(--s3) transparent;
+    scrollbar-width: thin;
+}
+
+.ec-table table {
+    border-collapse: collapse;
+    color: var(--white-2);
+    font: italic 400 15px/1.2 var(--serif);
+}
+
+.ec-table th,
+.ec-table td {
+    padding: 5px 8px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.ec-table th {
+    position: sticky;
+    background: var(--ink);
+    color: var(--grey);
+    font-weight: 400;
+}
+
+.ec-table thead th {
+    top: 0;
+    z-index: 1;
+}
+
+.ec-table tbody th {
+    left: 0;
+}
+
+.ec-table thead th:first-child {
+    left: 0;
+    z-index: 2;
+}
+
+.ec-table td {
+    cursor: pointer;
+}
+
+.ec-table td.ec-cross {
+    background: var(--s1);
+}
+
+.ec-table td.ec-sum {
+    background: var(--s3);
+    color: var(--white);
+}
+
+/* рисунки */
+
+.ec-plot {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: var(--plot-max);
+    overflow: visible;
+    user-select: none;
+}
+
+.ec-plot[hidden] {
+    display: none;
+}
+
+.ec-curve {
+    fill: none;
+    stroke: var(--white);
+    stroke-width: 1.7;
+    stroke-linejoin: round;
+}
+
+.ec-mirror {
+    stroke: var(--grey);
+    stroke-width: 1.4;
+    stroke-dasharray: 1 6;
+    stroke-linecap: round;
+}
+
+.ec-mirror-name {
+    fill: var(--grey);
+    font: 400 13px var(--sans);
+}
+
+.ec-tick {
+    fill: var(--grey);
+    font: 400 12px var(--mono);
+}
+
+.ec-line {
+    fill: none;
+    stroke: var(--white-2);
+    stroke-width: 1.2;
+}
+
+.ec-wrap,
+.ec-drop {
+    stroke: var(--white-2);
+    stroke-width: 1.6;
+    stroke-dasharray: 1 5;
+    stroke-linecap: round;
+}
+
+.ec-dot {
+    fill: var(--grey);
+}
+
+.ec-linedot {
+    fill: var(--white-2);
+}
+
+.ec-hot {
+    fill: var(--white);
+}
+
+.ec-ring {
+    fill: var(--ink);
+    stroke: var(--white);
+    stroke-width: 1.4;
+}
+
+.ec-name {
+    fill: var(--white-2);
+    font: 400 15px var(--sans);
+}
+
+.ec-name-big {
+    fill: var(--white);
+    font: italic 400 26px var(--serif);
+}
+
+.ec-star {
+    fill: var(--white);
+}
+
+.ec-halo ellipse {
+    fill: none;
+    stroke: var(--white);
+    stroke-width: 1.6;
+}
+
+.ec-halo .ec-halo-glow {
+    stroke-width: 7;
+    opacity: 0.12;
+}
+
+.ec-halo-name {
+    fill: var(--white);
+    font: italic 400 26px var(--serif);
+}
+
+.ec-path {
+    fill: none;
+    stroke: var(--white-2);
+    stroke-width: 1.3;
+    stroke-linejoin: round;
+}
+
+.ec-hit {
+    fill: transparent;
+    cursor: pointer;
+}
+
+.ec-handle {
+    outline: none;
+    cursor: grab;
+}
+
+.ec-dragging,
+.ec-dragging .ec-handle {
+    cursor: grabbing;
+}
+
+.ec-handle:focus-visible .ec-hot {
+    stroke: var(--white);
+    stroke-width: 9;
+    stroke-opacity: 0.25;
+}
+
+/* параметры: шаги с готическими цифрами, как «счёт» в ленте лабы 9 */
+.ec-params {
+    grid-template-columns: minmax(0, 1fr) clamp(300px, 30vw, 470px);
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+        "head figure"
+        "fields figure"
+        "steps figure";
+}
+
+.ec-params .ec-fields {
+    grid-area: fields;
+    max-width: 480px;
+}
+
+.ec-steps {
+    grid-area: steps;
+    margin: 4.4vh 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ec-steps li {
+    display: grid;
+    grid-template-columns: 4.2vw 1fr;
+    column-gap: 1.2vw;
+    margin-bottom: 3.2vh;
+}
+
+.ec-step-n {
+    color: var(--white-2);
+    font: 400 46px/0.8 var(--gothic);
+}
+
+.ec-step-f {
+    margin: 0;
+    color: var(--white);
+    font: italic 400 clamp(24px, 2vw, 30px) / 1.15 var(--serif);
+}
+
+.ec-ok {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    margin-left: 10px;
+    vertical-align: 2px;
+    fill: var(--white);
+}
+
+.ec-step-t {
+    margin: 6px 0 0;
+    color: var(--grey);
+    font: 400 14px/1.45 var(--sans);
+}
+
+.ec-steps li.ec-off .ec-step-n,
+.ec-steps li.ec-off .ec-step-f {
+    color: var(--s3);
+}
+
+.ec-params .ec-plot {
+    max-height: 56vh;
+}
+
+/* рисунок подгруппы ужат почти вдвое — подписи на нём крупнее, чтобы читались */
+.ec-params .ec-tick,
+.ec-params .ec-mirror-name {
+    font-size: 17px;
+}
+
+.ec-params .ec-name {
+    font-size: 21px;
+}
+
+.ec-params .ec-name-big {
+    font-size: 34px;
+}
+
+/* в «по модулю p» под рисунком ещё список точек: рисунок ниже, чтобы список влез в экран */
+.ec-field-panel .ec-plot,
+.ec-field-panel .ec-table {
+    max-height: calc(var(--plot-max) - 130px);
+}
+
+.ec-hasse {
+    display: block;
+    width: 100%;
+    max-width: 420px;
+    height: auto;
+    margin-top: 3vh;
+    overflow: visible;
+}
+
+.ec-hasse-end {
+    stroke: var(--grey);
+    stroke-width: 1.4;
+}
+
+.ec-hasse-m {
+    fill: var(--white);
+    font: italic 400 22px var(--serif);
+}
+
+/* телефон: вкладки строкой над экраном, рисунок во всю ширину, пульт под ним */
+@media (max-width: 760px) {
+    .ec-rail {
+        position: static;
+        width: auto;
+        padding: 3vh var(--gut) 0;
+    }
+
+    .ec-rail .folders-small {
+        padding: 0;
+    }
+
+    /* в ленте лабы 9 цепочку на телефоне прячут, а здесь это вкладки — без них не переключиться */
+    .ec .chain {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px 18px;
+        margin-top: 3vh;
+    }
+
+    .ec .chain::before {
+        display: none;
+    }
+
+    .ec .chain button {
+        grid-template-columns: 17px 22px auto;
+        width: auto;
+    }
+
+    .ec-panel,
+    .ec-params {
+        display: block;
+        margin-left: 0;
+        padding: 3vh var(--gut) calc(var(--term-bottom) + 80px);
+    }
+
+    .ec-h {
+        font-size: 13vw;
+    }
+
+    .ec-eq {
+        font-size: 8vw;
+    }
+
+    .ec-figure {
+        margin-top: 3vh;
+    }
+
+    .ec {
+        --plot-max: none;
+    }
+
+    .ec-params .ec-plot {
+        max-height: none;
+    }
+
+    .ec-steps li {
+        grid-template-columns: 12vw 1fr;
     }
 }
