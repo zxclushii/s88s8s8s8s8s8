@@ -2026,6 +2026,8 @@ body[data-screen="ec"] .term::before {
     margin: 2.6vh 0 0;
     color: var(--white);
     font: italic 400 clamp(30px, 2.5vw, 44px) / 1.1 var(--serif);
+    /* длинная формула без пробелов переносится, а не растягивает экран вбок */
+    overflow-wrap: anywhere;
 }
 
 .ec-eq-mod {

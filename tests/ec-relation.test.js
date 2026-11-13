@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { LAB, curvePoints, mod } from "../curve.js";
-import { evaluate, holds, parseRelation, prettyRelation, relationPoints } from "../ec-relation.js";
+import { evaluate, holds, parseRelation, prettyRelation, relationPoints, scanRelation } from "../ec-relation.js";
 
 /**
  * Все точки поля p × p, для которых верно условие, — перебором, без разбора формулы.
@@ -113,6 +113,36 @@ describe("разбор формулы", () => {
         assert.ok(Array.isArray(relationPoints(relation, 11)));
     });
 
+    it("показатель до 2⁵³ считается точно: y = 2^(x³) по модулю 127 — по точке в каждом столбце", () => {
+        // по малой теореме Ферма 2^n ≡ 2^(n mod 126) по модулю 127 — сверка без огромных чисел
+        const expected = brute(127, (x, y) => y === power(2, x ** 3 % 126, 127));
+        assert.equal(expected.length, 127);
+        assert.deepEqual(relationPoints(parseRelation("y = 2^(x^3)"), 127), expected);
+        const big = brute(29, (x, y) => y === (x === 0 ? 0 : power(x, 99999999 % 28, 29)));
+        assert.deepEqual(relationPoints(parseRelation("y = x^99999999"), 29), big);
+    });
+
+    it("показатель больше 2⁵³ − 1 не теряется молча: такие клетки пересчитаны отдельно", () => {
+        // 3³⁰ ≈ 2 · 10¹⁴ ещё точное целое, а 4³⁰ = 2⁶⁰ уже нет: столбцы x от 4 до 10 не проверить
+        const { points, unknown } = scanRelation(parseRelation("y = 2^(x^30)"), 11);
+        assert.deepEqual(
+            points.map((point) => point.x),
+            [0, 1, 2, 3],
+        );
+        assert.equal(unknown, 7 * 11);
+        assert.deepEqual(scanRelation(parseRelation("y = 9^9^9^9"), 11), { points: [], unknown: 121 });
+        assert.equal(scanRelation(parseRelation("y = x^2"), 11).unknown, 0);
+    });
+
+    it("длинная формула в пределах 300 знаков разбирается и считается", () => {
+        const text = `y = ${"x+".repeat(147)}x`;
+        assert.equal(text.length, 299);
+        assert.deepEqual(
+            relationPoints(parseRelation(text), 7),
+            brute(7, (x, y) => y === (148 * x) % 7),
+        );
+    });
+
     it("понятные ошибки вместо падения", () => {
         for (const text of [
             "y^2",
@@ -123,6 +153,8 @@ describe("разбор формулы", () => {
             "y = 10000000000",
             "y = x) + 1",
             "x < y < 3",
+            // так глубоко разбор ушёл бы в переполнение стека, а не в понятную ошибку
+            `y = ${"(".repeat(5000)}x${")".repeat(5000)}`,
         ]) {
             assert.throws(() => parseRelation(text), SyntaxError, text);
         }

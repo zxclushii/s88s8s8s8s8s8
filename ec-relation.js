@@ -14,9 +14,14 @@
 /** @typedef {{ op: Comparison, left: Expression, right: Expression }} Relation */
 /** @typedef {{ type: "number", value: number } | { type: "name", value: "x" | "y" } | { type: "symbol", value: string }} Token */
 
-// числа в формуле и показатели степени — без огромных: иначе 2^(x^y) считался бы вечно
+// числа в формуле — без огромных
 const NUMBER_LIMIT = 1e9;
-const EXPONENT_LIMIT = 1e6;
+// В тетради формулы короче; а очень длинную или глубоко вложенную разбор и подсчёт прошли бы рекурсией
+// глубже, чем держит стек браузера, — и вместо понятной ошибки вкладка молча застывала бы.
+const LENGTH_LIMIT = 300;
+// Показатель степени считается точным целым, а JS хранит целые без потерь только до 2⁵³ − 1. Больше — это
+// «посчитать нельзя», а не «точки нет»: такие клетки не теряются молча, их пересчитывает scanRelation.
+const TOO_BIG = Symbol("показатель степени больше 2⁵³ − 1");
 
 const SUPERSCRIPTS = new Map([..."⁰¹²³⁴⁵⁶⁷⁸⁹"].map((digit, value) => [digit, String(value)]));
 // как набирают на клавиатуре и как пишут в тетради — к одному виду
@@ -83,6 +88,9 @@ function tokenize(text) {
  * @returns {Relation}
  */
 export function parseRelation(text) {
+    if (text.length > LENGTH_LIMIT) {
+        throw new SyntaxError(`формула длиннее ${LENGTH_LIMIT} знаков`);
+    }
     const tokens = tokenize(text);
     let at = 0;
     const peek = () => tokens[at];
@@ -210,23 +218,60 @@ function inverseOrNull(n, p) {
 }
 
 /**
- * Показатель степени — обычное целое, без модуля, как в ffplot. null — дробный или слишком большой.
+ * Целое, пока JS хранит его без потерь, иначе TOO_BIG. Сумма или произведение точных целых, которые
+ * на деле больше 2⁵³ − 1, и после округления остаются больше, так что проверка после действия честная.
+ * @param {number} value
+ * @returns {number | typeof TOO_BIG}
+ */
+function exact(value) {
+    return Number.isSafeInteger(value) ? value : TOO_BIG;
+}
+
+/**
+ * Целая степень целого. Не через **: он считает с плавающей точкой и на больших числах может ошибиться
+ * в последнем знаке. Умножаем по одному — при |base| ≥ 2 за 2⁵³ выходим меньше чем за 54 шага.
+ * @param {number} base
+ * @param {number} exponent
+ * @returns {number | null | typeof TOO_BIG}
+ */
+function power(base, exponent) {
+    // 1 и −1 в любой степени — снова ±1, 0 — снова 0: без перебора, даже при показателе около 2⁵³
+    if (base === 1 || (base === 0 && exponent > 0)) {
+        return base;
+    }
+    if (base === -1) {
+        return exponent % 2 === 0 ? 1 : -1;
+    }
+    // 0⁻¹ не бывает, у остальных отрицательная степень — дробь
+    if (exponent < 0) {
+        return null;
+    }
+    let result = 1;
+    for (let i = 0; i < exponent; i++) {
+        result *= base;
+        if (!Number.isSafeInteger(result)) {
+            return TOO_BIG;
+        }
+    }
+    return result;
+}
+
+/**
+ * Показатель степени — обычное целое, без модуля, как в ffplot. null — дробный; TOO_BIG — больше 2⁵³ − 1.
  * @param {Expression} node
  * @param {number} x
  * @param {number} y
- * @returns {number | null}
+ * @returns {number | null | typeof TOO_BIG}
  */
 function integer(node, x, y) {
-    /** @param {number | null} value */
-    const bounded = (value) => (value !== null && Math.abs(value) <= EXPONENT_LIMIT ? value : null);
     switch (node.kind) {
         case "number":
-            return bounded(node.value);
+            return node.value;
         case "variable":
             return node.name === "x" ? x : y;
         case "negate": {
             const value = integer(node.arg, x, y);
-            return value === null ? null : -value;
+            return typeof value === "number" ? -value : value;
         }
         case "binary": {
             const left = integer(node.left, x, y);
@@ -234,47 +279,53 @@ function integer(node, x, y) {
             if (left === null || right === null) {
                 return null;
             }
+            if (left === TOO_BIG || right === TOO_BIG) {
+                return TOO_BIG;
+            }
             switch (node.op) {
                 case "+":
-                    return bounded(left + right);
+                    return exact(left + right);
                 case "-":
-                    return bounded(left - right);
+                    return exact(left - right);
                 case "*":
-                    return bounded(left * right);
+                    return exact(left * right);
                 case "/":
                     return right !== 0 && left % right === 0 ? left / right : null;
                 case "^":
-                    return right >= 0 && right <= 64 ? bounded(left ** right) : null;
+                    return power(left, right);
             }
         }
     }
 }
 
 /**
- * Значение части формулы по модулю p в точке (x; y). null — посчитать нельзя: деление на необратимое,
- * слишком большой показатель.
+ * Значение части формулы по модулю p в точке (x; y). null — значения нет: деление на необратимое, дробный
+ * показатель; TOO_BIG — посчитать нельзя: показатель больше 2⁵³ − 1.
  * @param {Expression} node
  * @param {number} x
  * @param {number} y
  * @param {number} p
- * @returns {number | null}
+ * @returns {number | null | typeof TOO_BIG}
  */
-export function evaluate(node, x, y, p) {
+function calculate(node, x, y, p) {
     switch (node.kind) {
         case "number":
             return mod(node.value, p);
         case "variable":
             return mod(node.name === "x" ? x : y, p);
         case "negate": {
-            const value = evaluate(node.arg, x, y, p);
-            return value === null ? null : mod(-value, p);
+            const value = calculate(node.arg, x, y, p);
+            return typeof value === "number" ? mod(-value, p) : value;
         }
         case "binary": {
             if (node.op === "^") {
-                const base = evaluate(node.left, x, y, p);
+                const base = calculate(node.left, x, y, p);
                 const exponent = integer(node.right, x, y);
                 if (base === null || exponent === null) {
                     return null;
+                }
+                if (base === TOO_BIG || exponent === TOO_BIG) {
+                    return TOO_BIG;
                 }
                 // отрицательный показатель — степень обратного: 2^−1 = 1/2
                 const start = exponent < 0 ? inverseOrNull(base, p) : base;
@@ -291,10 +342,13 @@ export function evaluate(node, x, y, p) {
                 }
                 return result;
             }
-            const left = evaluate(node.left, x, y, p);
-            const right = evaluate(node.right, x, y, p);
+            const left = calculate(node.left, x, y, p);
+            const right = calculate(node.right, x, y, p);
             if (left === null || right === null) {
                 return null;
+            }
+            if (left === TOO_BIG || right === TOO_BIG) {
+                return TOO_BIG;
             }
             switch (node.op) {
                 case "+":
@@ -313,6 +367,20 @@ export function evaluate(node, x, y, p) {
 }
 
 /**
+ * Значение части формулы по модулю p в точке (x; y). null — посчитать нельзя: деление на необратимое,
+ * показатель дробный или больше 2⁵³ − 1.
+ * @param {Expression} node
+ * @param {number} x
+ * @param {number} y
+ * @param {number} p
+ * @returns {number | null}
+ */
+export function evaluate(node, x, y, p) {
+    const value = calculate(node, x, y, p);
+    return value === TOO_BIG ? null : value;
+}
+
+/**
  * Верно ли сравнение в точке: обе части по модулю p, от 0 до p − 1, потом сравниваются как числа.
  * @param {Relation} relation
  * @param {number} x
@@ -320,10 +388,25 @@ export function evaluate(node, x, y, p) {
  * @param {number} p
  */
 export function holds(relation, x, y, p) {
-    const left = evaluate(relation.left, x, y, p);
-    const right = evaluate(relation.right, x, y, p);
+    return verdict(relation, x, y, p) === true;
+}
+
+/**
+ * То же, что holds, но TOO_BIG — проверить нельзя: показатель степени больше 2⁵³ − 1.
+ * @param {Relation} relation
+ * @param {number} x
+ * @param {number} y
+ * @param {number} p
+ * @returns {boolean | typeof TOO_BIG}
+ */
+function verdict(relation, x, y, p) {
+    const left = calculate(relation.left, x, y, p);
+    const right = calculate(relation.right, x, y, p);
     if (left === null || right === null) {
         return false;
+    }
+    if (left === TOO_BIG || right === TOO_BIG) {
+        return TOO_BIG;
     }
     switch (relation.op) {
         case "=":
@@ -342,21 +425,37 @@ export function holds(relation, x, y, p) {
 }
 
 /**
+ * Все точки поля p × p, где сравнение верно, — по возрастанию x, потом y, — и сколько клеток проверить
+ * не вышло: показатель степени в них больше 2⁵³ − 1.
+ * @param {Relation} relation
+ * @param {number} p
+ * @returns {{ points: { x: number, y: number }[], unknown: number }}
+ */
+export function scanRelation(relation, p) {
+    /** @type {{ x: number, y: number }[]} */
+    const points = [];
+    let unknown = 0;
+    for (let x = 0; x < p; x++) {
+        for (let y = 0; y < p; y++) {
+            const result = verdict(relation, x, y, p);
+            if (result === TOO_BIG) {
+                unknown += 1;
+            } else if (result) {
+                points.push({ x, y });
+            }
+        }
+    }
+    return { points, unknown };
+}
+
+/**
  * Все точки поля p × p, где сравнение верно, — по возрастанию x, потом y.
  * @param {Relation} relation
  * @param {number} p
  * @returns {{ x: number, y: number }[]}
  */
 export function relationPoints(relation, p) {
-    const found = [];
-    for (let x = 0; x < p; x++) {
-        for (let y = 0; y < p; y++) {
-            if (holds(relation, x, y, p)) {
-                found.push({ x, y });
-            }
-        }
-    }
-    return found;
+    return scanRelation(relation, p).points;
 }
 
 /**

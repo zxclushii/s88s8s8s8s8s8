@@ -17,7 +17,7 @@ import {
     star,
     svg,
 } from "./ec-draw.js";
-import { evaluate, parseRelation, prettyRelation, relationPoints } from "./ec-relation.js";
+import { evaluate, parseRelation, prettyRelation, scanRelation } from "./ec-relation.js";
 
 /** @typedef {import("./ec-relation.js").Relation} Relation */
 /** @typedef {{ x: number, y: number }} Spot */
@@ -60,6 +60,8 @@ export function mountFree() {
         p: parseModulus(modulusInput.value) ?? 53,
         /** @type {Spot[]} */
         points: [],
+        // клетки, которые не проверить: показатель степени в них больше 2⁵³ − 1
+        unknown: 0,
         /** @type {Spot | null} */
         picked: null,
     };
@@ -83,7 +85,9 @@ export function mountFree() {
     }
 
     function recount() {
-        state.points = state.relation ? relationPoints(state.relation, state.p) : [];
+        const scan = state.relation ? scanRelation(state.relation, state.p) : { points: [], unknown: 0 };
+        state.points = scan.points;
+        state.unknown = scan.unknown;
         const picked = state.picked;
         if (picked && !state.points.some((point) => point.x === picked.x && point.y === picked.y)) {
             state.picked = null;
@@ -110,6 +114,10 @@ export function mountFree() {
         let text = state.error
             ? `Не понял формулу: ${state.error}. Рисунок — от последней, что разобралась.`
             : "Это все пары (x; y) от 0 до p − 1, для которых формула верна, если обе её части считать по модулю p. Клик по точке — её координаты.";
+        if (state.unknown > 0) {
+            const cells = plural(state.unknown, ["клетке", "клетках", "клетках"]);
+            text = `В ${state.unknown} ${cells} из ${p * p} показатель степени больше 2⁵³ − 1: его точно не посчитать, и эти клетки пропущены. ${text}`;
+        }
         if (!isPrime(p)) {
             text = `p = ${p} не простое: по модулю ${p} делить можно не на всё, и где деления нет, там нет и точки. ${text}`;
         }
