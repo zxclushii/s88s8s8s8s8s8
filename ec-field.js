@@ -9,8 +9,10 @@ import {
     add,
     curvePoints,
     discriminant,
+    inverse,
     isPrime,
     lineStep,
+    mod,
     multiply,
     negate,
     slope,
@@ -19,6 +21,8 @@ import {
     wrapSegments,
 } from "./curve.js";
 import { byId } from "./dom.js";
+import { createSolution } from "./ec-solution.js";
+import { additionSteps, inverseSteps, multipleSteps } from "./ec-steps.js";
 import {
     drawFieldBase,
     fieldScale,
@@ -40,6 +44,11 @@ import {
 /** @typedef {import("./ec-store.js").CurveStore} CurveStore */
 /** @typedef {{ x: number, y: number }} Spot */
 /** @typedef {"add" | "double" | "inverse" | "orbit"} Mode */
+/**
+ * Что видно на месте рисунка: сам рисунок, ход вычисления, сложение точек и три таблицы поля — сложение,
+ * умножение и обратные по модулю p, как на странице Table в программе FiniteField.
+ * @typedef {"plot" | "solution" | "points" | "add" | "mul" | "inv"} View
+ */
 
 // рисунок 640 × 700: поле 584 × 584, над ним полоса под нимб, слева и снизу цифры
 const AREA = { left: 40, top: 70, size: 584 };
@@ -97,7 +106,9 @@ export function mountField(store) {
     const out = byId("field-out", HTMLElement);
     const note = byId("field-note", HTMLElement);
     const count = byId("field-count", HTMLElement);
-    const viewToggle = byId("field-view", HTMLButtonElement);
+    const viewButtons = byId("field-views", HTMLElement).querySelectorAll("button");
+    const solutionBox = byId("field-solution", HTMLElement);
+    const solution = createSolution(solutionBox);
     const list = byId("field-points", HTMLElement);
     const modeButtons = byId("field-modes", HTMLElement).querySelectorAll("button");
 
@@ -111,12 +122,13 @@ export function mountField(store) {
         Q: start.Q,
         /** @type {"P" | "Q"} какую точку ставит следующий клик в режиме P + Q */
         next: "P",
-        table: false,
+        /** @type {View} */
+        view: "plot",
     };
     let stop = () => {};
-    // таблица строится, только когда её открыли, и заново — только для новой кривой
-    /** @type {Curve | null} */
-    let tableCurve = null;
+    // таблица строится, только когда её открыли, и заново — только для новой кривой или другого вида
+    /** @type {{ curve: Curve, view: View } | null} */
+    let tableFor = null;
 
     /**
      * Что сейчас складываем и что выходит.
@@ -157,7 +169,10 @@ export function mountField(store) {
         for (const button of modeButtons) {
             button.disabled = !prime || state.P === null;
         }
-        viewToggle.disabled = !prime;
+        // по составному p нет ни сложения точек, ни разбора: деление ломается
+        for (const button of viewButtons) {
+            button.disabled = !prime && (button.dataset.view === "solution" || button.dataset.view === "points");
+        }
 
         if (!prime) {
             fillRows(out, []);
@@ -286,15 +301,19 @@ export function mountField(store) {
      */
     function draw(animate) {
         stop();
-        // по составному p таблицу не посчитать: деление ломается — возвращаемся к рисунку
-        if (state.table && !isPrime(curve.p)) {
-            showTable(false);
+        // по составному p сложения точек и разбора нет — возвращаемся к рисунку
+        if (!isPrime(curve.p) && (state.view === "solution" || state.view === "points")) {
+            setView("plot");
         }
         const built = construction();
         describe(built);
         fillList(built);
-        if (state.table) {
-            markTable(built);
+        if (state.view === "solution") {
+            showSolution(built);
+            return;
+        }
+        if (state.view !== "plot") {
+            showTable(state.view, built);
             return;
         }
 
@@ -460,6 +479,136 @@ export function mountField(store) {
         );
     }
 
+    /**
+     * Ход вычисления того, что сейчас на рисунке.
+     * @param {ReturnType<typeof construction>} built
+     */
+    function showSolution(built) {
+        if (built.kind === "none") {
+            solution.show("нечего считать: у кривой нет точек, кроме O", []);
+        } else if (built.kind === "orbit") {
+            solution.show(`все кратные P = ${formatPoint(built.P)}`, multipleSteps(curve, built.P));
+        } else if (state.mode === "inverse") {
+            solution.show(`P + (−P) для P = ${formatPoint(built.P)}`, inverseSteps(curve, built.P));
+        } else {
+            const second = built.kind === "line" ? built.Q : built.other;
+            const doubling = same(built.P, second);
+            const heading = doubling
+                ? `2P = 2 · ${formatPoint(built.P)}`
+                : `P + Q = ${formatPoint(built.P)} + ${formatPoint(second)}`;
+            solution.show(`${heading} по модулю ${curve.p}`, additionSteps(curve, built.P, second));
+        }
+    }
+
+    /**
+     * Таблица поля: сложение или умножение по модулю p — строка с клеткой, или обратные: a и a⁻¹.
+     * @param {"add" | "mul" | "inv"} kind
+     */
+    function buildNumberTable(kind) {
+        const { p } = curve;
+        const table = document.createElement("table");
+        table.className = "ec-numbers";
+        const head = table.createTHead().insertRow();
+        if (kind === "inv") {
+            const label = document.createElement("th");
+            label.scope = "row";
+            label.textContent = "a";
+            head.append(label);
+            const row = table.createTBody().insertRow();
+            const flipped = document.createElement("th");
+            flipped.scope = "row";
+            flipped.textContent = "a⁻¹";
+            row.append(flipped);
+            for (let a = 1; a < p; a++) {
+                const th = document.createElement("th");
+                th.scope = "col";
+                th.textContent = String(a);
+                head.append(th);
+                const td = row.insertCell();
+                // у составного p обратные есть не у всех
+                let value = "—";
+                try {
+                    value = String(inverse(a, p));
+                } catch (error) {
+                    if (!(error instanceof RangeError)) {
+                        throw error;
+                    }
+                }
+                td.textContent = value;
+                td.dataset.r = "1";
+                td.dataset.c = String(a);
+            }
+            return table;
+        }
+        const corner = document.createElement("th");
+        corner.textContent = kind === "add" ? "+" : "·";
+        head.append(corner);
+        for (let c = 0; c < p; c++) {
+            const th = document.createElement("th");
+            th.scope = "col";
+            th.textContent = String(c);
+            head.append(th);
+        }
+        const body = table.createTBody();
+        for (let r = 0; r < p; r++) {
+            const tr = body.insertRow();
+            const th = document.createElement("th");
+            th.scope = "row";
+            th.textContent = String(r);
+            tr.append(th);
+            for (let c = 0; c < p; c++) {
+                const td = tr.insertCell();
+                td.textContent = String(kind === "add" ? (r + c) % p : (r * c) % p);
+                td.dataset.r = String(r);
+                td.dataset.c = String(c);
+            }
+        }
+        return table;
+    }
+
+    /**
+     * Таблица на месте рисунка; в таблицах поля подсвечено то, что нужно для наклона λ: обратное к знаменателю
+     * и произведение числителя на него.
+     * @param {Exclude<View, "plot" | "solution">} view
+     * @param {ReturnType<typeof construction>} built
+     */
+    function showTable(view, built) {
+        if (tableFor?.curve !== curve || tableFor.view !== view) {
+            if (view === "points") {
+                buildTable();
+            } else {
+                tableBox.replaceChildren(buildNumberTable(view));
+            }
+            tableFor = { curve, view };
+        }
+        if (view === "points") {
+            markTable(built);
+            return;
+        }
+        /** @type {[number, number][]} */
+        const lit = [];
+        if (built.kind === "line") {
+            const { p } = curve;
+            const { num, den } = slope(curve, built.P, built.Q);
+            const bottom = mod(den, p);
+            const flipped = inverse(bottom, p);
+            // на таблице сложения λ не виден — там подсвечивать нечего
+            if (view === "mul") {
+                lit.push([bottom, flipped], [mod(num, p), flipped]);
+            } else if (view === "inv") {
+                lit.push([1, bottom]);
+            }
+        }
+        for (const cell of tableBox.querySelectorAll("td")) {
+            const r = Number(cell.dataset.r);
+            const c = Number(cell.dataset.c);
+            cell.classList.toggle(
+                "ec-sum",
+                lit.some(([row, column]) => row === r && column === c),
+            );
+        }
+    }
+
     /** Таблица сложения: строка + столбец = клетка. O — в начале, как ноль. */
     function buildTable() {
         /** @type {Point[]} */
@@ -491,7 +640,6 @@ export function mountField(store) {
             });
         });
         tableBox.replaceChildren(table);
-        tableCurve = curve;
     }
 
     /**
@@ -499,9 +647,6 @@ export function mountField(store) {
      * @param {ReturnType<typeof construction>} built
      */
     function markTable(built) {
-        if (tableCurve !== curve) {
-            buildTable();
-        }
         const all = [null, ...points];
         const row = built.kind === "none" ? -1 : all.findIndex((point) => same(point, built.P));
         const column =
@@ -569,7 +714,8 @@ export function mountField(store) {
 
     tableBox.addEventListener("click", (event) => {
         const cell = event.target instanceof Element ? event.target.closest("td") : null;
-        if (!cell) {
+        // клик выбирает P и Q только в таблице сложения точек
+        if (!cell || state.view !== "points") {
             return;
         }
         const all = [null, ...points];
@@ -609,20 +755,35 @@ export function mountField(store) {
         });
     }
 
-    /** @param {boolean} on */
-    function showTable(on) {
-        state.table = on;
+    /** @param {View} view */
+    function setView(view) {
+        state.view = view;
         // у SVG нет свойства hidden — только атрибут
-        plot.toggleAttribute("hidden", on);
-        tableBox.hidden = !on;
-        viewToggle.textContent = on ? "рисунок" : "таблица сложения";
-        viewToggle.setAttribute("aria-pressed", String(on));
+        plot.toggleAttribute("hidden", view !== "plot");
+        solutionBox.hidden = view !== "solution";
+        tableBox.hidden = view === "plot" || view === "solution";
+        for (const button of viewButtons) {
+            button.setAttribute("aria-pressed", String(button.dataset.view === view));
+        }
     }
 
-    viewToggle.addEventListener("click", () => {
-        showTable(!state.table);
-        draw(true);
-    });
+    for (const button of viewButtons) {
+        button.addEventListener("click", () => {
+            const view = button.dataset.view;
+            if (
+                view !== "plot" &&
+                view !== "solution" &&
+                view !== "points" &&
+                view !== "add" &&
+                view !== "mul" &&
+                view !== "inv"
+            ) {
+                throw new Error(`index.html: у кнопки вида нет имени (data-view="${view}")`);
+            }
+            setView(view);
+            draw(true);
+        });
+    }
 
     store.subscribe((next) => {
         curve = next;

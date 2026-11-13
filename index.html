@@ -624,6 +624,13 @@
                             ><span class="chain-n">4</span><span class="chain-name">любая кривая</span>
                         </button>
                     </li>
+                    <li>
+                        <button type="button" data-tab="cipher" aria-controls="ec-cipher">
+                            <span class="chain-mark"
+                                ><svg class="chain-star" aria-hidden="true"><use href="#star" /></svg></span
+                            ><span class="chain-n">5</span><span class="chain-name">шифр</span>
+                        </button>
+                    </li>
                 </ol>
             </nav>
 
@@ -707,6 +714,7 @@
                         <button type="button" data-mode="add" aria-pressed="true">P + Q</button>
                         <button type="button" data-mode="double" aria-pressed="false">P + P</button>
                         <button type="button" data-mode="inverse" aria-pressed="false">P + (−P)</button>
+                        <button type="button" data-mode="assoc" aria-pressed="false">(P + Q) + R</button>
                     </div>
                     <dl class="ec-out" id="plane-out"></dl>
                     <p class="ec-note" id="plane-note" aria-live="polite"></p>
@@ -723,6 +731,15 @@
                     </p>
                 </header>
                 <figure class="ec-figure">
+                    <!-- что показать на месте рисунка: ход вычисления и таблицы — как Detail и Table в FiniteField -->
+                    <div class="ec-views" id="field-views" role="group" aria-label="Что показать">
+                        <button type="button" data-view="plot" aria-pressed="true">рисунок</button>
+                        <button type="button" data-view="solution" aria-pressed="false">как считается</button>
+                        <button type="button" data-view="points" aria-pressed="false">сложение точек</button>
+                        <button type="button" data-view="add" aria-pressed="false">поле: +</button>
+                        <button type="button" data-view="mul" aria-pressed="false">поле: ×</button>
+                        <button type="button" data-view="inv" aria-pressed="false">обратные</button>
+                    </div>
                     <svg
                         class="ec-plot"
                         id="field-plot"
@@ -730,13 +747,9 @@
                         preserveAspectRatio="xMinYMin meet"
                         role="img"
                     ></svg>
+                    <div class="ec-solution" id="field-solution" hidden></div>
                     <div class="ec-table" id="field-table" hidden></div>
-                    <p class="ec-label">
-                        <span id="field-count">29 точек и O</span> ·
-                        <button type="button" class="ec-toggle" id="field-view" aria-pressed="false">
-                            таблица сложения
-                        </button>
-                    </p>
+                    <p class="ec-label" id="field-count">29 точек и O</p>
                     <div class="ec-points" id="field-points" aria-label="Точки кривой"></div>
                 </figure>
                 <div class="ec-side">
@@ -886,6 +899,54 @@
                     </div>
                     <dl class="ec-out" id="free-out"></dl>
                     <p class="ec-note" id="free-note" aria-live="polite"></p>
+                </div>
+            </section>
+
+            <section class="ec-panel ec-cipher-panel" id="ec-cipher" aria-labelledby="ec-cipher-h" hidden>
+                <header class="ec-head">
+                    <h2 class="ec-h" id="ec-cipher-h">шифр</h2>
+                    <p class="ec-meta">лаба 10 · Эль-Гамаль на кривой: зашифровать точку и расшифровать обратно</p>
+                    <p class="ec-eq">
+                        <span data-equation>y² = x³ − x + 2</span>
+                        <span class="ec-eq-mod">(mod <span data-p>29</span>)</span>
+                    </p>
+                </header>
+                <figure class="ec-figure">
+                    <div class="ec-views" id="cipher-views" role="group" aria-label="Что показать">
+                        <button type="button" data-view="plot" aria-pressed="true">рисунок</button>
+                        <button type="button" data-view="solution" aria-pressed="false">как считается</button>
+                    </div>
+                    <svg
+                        class="ec-plot"
+                        id="cipher-plot"
+                        viewBox="0 0 640 700"
+                        preserveAspectRatio="xMinYMin meet"
+                        role="img"
+                    ></svg>
+                    <div class="ec-solution" id="cipher-solution" hidden></div>
+                </figure>
+                <div class="ec-side">
+                    <div class="ec-fields">
+                        <label class="ec-field">
+                            <span>ключ d</span>
+                            <input id="cipher-d" type="number" step="1" value="3" inputmode="numeric" />
+                        </label>
+                        <label class="ec-field">
+                            <span>случайное k</span>
+                            <input id="cipher-k" type="number" step="1" value="2" inputmode="numeric" />
+                        </label>
+                        <label class="ec-field">
+                            <span>сообщение m</span>
+                            <input id="cipher-m" type="number" step="1" value="5" inputmode="numeric" />
+                        </label>
+                    </div>
+                    <p class="ec-hint">
+                        d — закрытый ключ, от <span id="cipher-d-range">1 до 4</span>; k — случайное, от
+                        <span id="cipher-k-range">1 до 4</span>; m — сообщение, от
+                        <span id="cipher-m-range">0 до 9</span>
+                    </p>
+                    <dl class="ec-out ec-out-cipher" id="cipher-out"></dl>
+                    <p class="ec-note" id="cipher-note" aria-live="polite"></p>
                 </div>
             </section>
         </section>

@@ -1,7 +1,8 @@
 // @ts-check
 // Вкладка «на плоскости»: кривая y² = x³ + ax + b над обычными числами. P и Q таскаются по кривой, прямая
-// через них задевает кривую в третьей точке, её отражение через ось x — сумма. Ещё P + P — касательная —
-// и P + (−P): вертикаль уходит вверх, в нимб, это точка O. Построение каждый раз рисуется по шагам.
+// через них задевает кривую в третьей точке, её отражение через ось x — сумма. Ещё P + P — касательная —,
+// P + (−P): вертикаль уходит вверх, в нимб, это точка O, — и (P + Q) + R = P + (Q + R): два построения
+// сходятся в одной точке, как «Associative Law» в FiniteField. Построение каждый раз рисуется по шагам.
 
 import { byId } from "./dom.js";
 import {
@@ -20,8 +21,8 @@ import {
 import { addReal, curveLines, kindOf, nearestPoint, rhs, roots, stepAlong } from "./ec-real.js";
 
 /** @typedef {import("./ec-real.js").RealPoint} RealPoint */
-/** @typedef {"add" | "double" | "inverse"} Mode */
-/** @typedef {"P" | "Q"} Handle */
+/** @typedef {"add" | "double" | "inverse" | "assoc"} Mode */
+/** @typedef {"P" | "Q" | "R"} Handle */
 
 // рисунок 600 × 780; сверху полоса под нимб. Масштаб по осям один — иначе касательная выглядела бы кривой
 const WIDTH = 600;
@@ -41,6 +42,8 @@ const KEY_STEP = 4;
 const GROW = 520;
 const EXTEND = 320;
 const DROP = 380;
+// в (P + Q) + R четыре сложения подряд — каждое рисуется быстрее
+const BRISK = 1.6;
 
 /** @param {number} x */
 const toX = (x) => (x - X_MIN) * SCALE;
@@ -106,6 +109,8 @@ export function mountPlane() {
         P: { x: 0, y: 0 },
         /** @type {RealPoint} */
         Q: { x: 0, y: 0 },
+        /** @type {RealPoint} третья точка — для (P + Q) + R */
+        R: { x: 0, y: 0 },
     };
     let curve = curveLines(state.a, state.b, X_FAR);
     let stop = () => {};
@@ -129,6 +134,8 @@ export function mountPlane() {
 
     state.P = snap({ x: -1.3, y: Math.sqrt(rhs(state.a, state.b, -1.3)) });
     state.Q = snap({ x: 0.2, y: Math.sqrt(rhs(state.a, state.b, 0.2)) });
+    // R снизу слева: так все шесть точек построения (P + Q) + R помещаются на рисунок
+    state.R = snap({ x: -1.5, y: -Math.sqrt(rhs(state.a, state.b, -1.5)) });
 
     function drawBase() {
         base.replaceChildren();
@@ -181,7 +188,8 @@ export function mountPlane() {
     }
 
     /**
-     * Что показать: прямая (или касательная) с третьей точкой и суммой, или вертикаль в O.
+     * Что показать: прямая (или касательная) с третьей точкой и суммой, или вертикаль в O. Для (P + Q) + R —
+     * обе стороны равенства.
      * @returns {{ kind: "line", lambda: number, third: RealPoint, sum: RealPoint, tangent: boolean }
      *     | { kind: "vertical", other: RealPoint }}
      */
@@ -199,6 +207,23 @@ export function mountPlane() {
         return { kind: "line", ...result, tangent };
     }
 
+    /**
+     * (P + Q) + R и P + (Q + R) — по шагам; O — null.
+     * @returns {{ pq: RealPoint | null, left: RealPoint | null, qr: RealPoint | null, right: RealPoint | null }}
+     */
+    function associative() {
+        const { a, P, Q, R } = state;
+        /**
+         * @param {RealPoint | null} U
+         * @param {RealPoint | null} V
+         * @returns {RealPoint | null}
+         */
+        const plus = (U, V) => (U === null ? V : V === null ? U : (addReal(a, U, V)?.sum ?? null));
+        const pq = plus(P, Q);
+        const qr = plus(Q, R);
+        return { pq, left: plus(pq, R), qr, right: plus(P, qr) };
+    }
+
     function describe() {
         const { a, b, P, Q, mode } = state;
         formula.textContent = equation(a, b, (value) => formatNumber(value, 1));
@@ -214,8 +239,30 @@ export function mountPlane() {
                   ? `4a³ + 27b² = ${value} < 0 — овал и ветка`
                   : `4a³ + 27b² = 0 — кривая особая: ${singularPlace(a, b)}. Для шифра такая не годится`;
 
-        const built = construction();
         const point = (/** @type {RealPoint} */ p) => `(${formatFixed(p.x)}; ${formatFixed(p.y)})`;
+        if (mode === "assoc") {
+            const { pq, left, qr, right } = associative();
+            const named = (/** @type {RealPoint | null} */ p) => (p === null ? "O" : point(p));
+            /** @type {[string, string][]} */
+            const rows = [
+                ["P", point(P)],
+                ["Q", point(Q)],
+                ["R", point(state.R)],
+                ["P + Q", named(pq)],
+                ["(P + Q) + R", named(left)],
+                ["Q + R", named(qr)],
+                ["P + (Q + R)", named(right)],
+            ];
+            fillRows(out, rows);
+            note.textContent =
+                "Сплошные прямые складывают (P + Q) + R, пунктирные — P + (Q + R), и обе дороги приходят в одну звезду. Это и есть ассоциативность: скобки можно ставить как угодно. P, Q и R таскаются.";
+            plot.setAttribute(
+                "aria-label",
+                `Кривая ${formula.textContent}; ${rows.map((row) => row.join(" ")).join("; ")}`,
+            );
+            return;
+        }
+        const built = construction();
         const name = mode === "add" ? "P + Q" : mode === "double" ? "2P" : "P + (−P)";
         /** @type {[string, string][]} */
         const rows = [["P", point(P)]];
@@ -279,6 +326,94 @@ export function mountPlane() {
     }
 
     /**
+     * Одно сложение U + V на рисунке. Прямая растёт от U к V, потом до третьей точки и до краёв, третья точка
+     * отражается через ось x в сумму. Вертикаль — V = −U или касательная при y = 0 — уходит вверх, в нимб.
+     * @param {{ clipped: Element, marks: Element }} layers clipped — обрезан по рисунку, marks — точки и подписи
+     * @param {RealPoint} U
+     * @param {RealPoint} V
+     * @param {{ line: string, third: string, sum: string, final: boolean, start: number, pace: number,
+     *     below?: boolean }} how line — класс прямой; third и sum — подписи (пустая — без подписи); final — сумма
+     *     звездой, иначе точкой; start — с какой миллисекунды; pace — во сколько раз быстрее обычного;
+     *     below — подпись суммы под ней
+     * @returns {{ frame: (elapsed: number) => void, end: number }}
+     */
+    function addition({ clipped, marks }, U, V, how) {
+        const grow = GROW / how.pace;
+        const extend = EXTEND / how.pace;
+        const drop = DROP / how.pace;
+        const at = (/** @type {RealPoint} */ p) => ({ x: toX(p.x), y: toY(p.y) });
+        const result = addReal(state.a, U, V);
+        if (result === null) {
+            // вертикаль через U и вторую точку: растёт от нижней из них вверх, за край рисунка, в нимб
+            const below = svg("line", { class: how.line }, drawing);
+            const up = svg("line", { class: how.line }, drawing);
+            const ring = svg("circle", { class: "ec-ring", cx: toX(V.x), cy: toY(V.y), r: 5.5 }, marks);
+            const nimbus = halo(marks, toX(U.x), 30);
+            const lowest = U.y < V.y ? at(U) : at(V);
+            return {
+                end: how.start + grow + extend + drop,
+                frame(elapsed) {
+                    const t = elapsed - how.start;
+                    setPartial(below, { x: lowest.x, y: HEIGHT }, lowest, 1);
+                    below.setAttribute("opacity", String(stage(t, 0, grow)));
+                    setPartial(up, lowest, { x: lowest.x, y: 38 }, stage(t, 0, grow + extend));
+                    ring.setAttribute("opacity", String(stage(t, grow * 0.5, 120)));
+                    nimbus.setAttribute("opacity", String(stage(t, grow + extend - 80, drop)));
+                },
+            };
+        }
+        const { lambda, third, sum } = result;
+        const tangent = U.x === V.x && U.y === V.y;
+        const line = svg("line", { class: how.line }, clipped);
+        const reflection = svg("line", { class: "ec-drop" }, clipped);
+        const ring = svg("circle", { class: "ec-ring", cx: toX(third.x), cy: toY(third.y), r: 5.5 }, marks);
+        const sumMark = how.final
+            ? star(marks, toX(sum.x), toY(sum.y), 30)
+            : svg("circle", { class: "ec-hot", cx: toX(sum.x), cy: toY(sum.y), r: 4.5 }, marks);
+        // подпись третьей точки — с той стороны, куда не уходит отражение
+        const thirdName = how.third
+            ? pointName(marks, toX(third.x), toY(third.y), how.third, "ec-name", EDGES, { below: third.y > 0 })
+            : null;
+        const sumName = how.sum
+            ? pointName(marks, toX(sum.x) + 6, toY(sum.y), how.sum, how.final ? "ec-name-big" : "ec-name", EDGES, {
+                  below: how.below,
+              })
+            : null;
+        // прямая растёт от U к V, потом до третьей точки, потом до краёв; у касательной первого шага нет
+        const reach = tangent ? U.x : V.x;
+        const left = Math.min(U.x, reach, third.x);
+        const right = Math.max(U.x, reach, third.x);
+        const second = tangent ? 0 : grow;
+        const edges = second + grow;
+        return {
+            end: how.start + edges + extend + drop,
+            frame(elapsed) {
+                const t = elapsed - how.start;
+                const toV = stage(t, 0, second);
+                const toThird = stage(t, second, grow);
+                const toEdges = stage(t, edges, extend);
+                let from = Math.min(U.x, U.x + (reach - U.x) * toV);
+                let to = Math.max(U.x, U.x + (reach - U.x) * toV);
+                from += (Math.min(from, left) - from) * toThird;
+                to += (Math.max(to, right) - to) * toThird;
+                from += (X_MIN - 1 - from) * toEdges;
+                to += (X_MAX + 1 - to) * toEdges;
+                setSlanted(line, U, lambda, from, to);
+                const seen = String(stage(t, edges - 60, 120));
+                ring.setAttribute("opacity", seen);
+                thirdName?.setAttribute("opacity", seen);
+                const k = stage(t, edges + extend * 0.4, drop);
+                setPartial(reflection, at(third), at(sum), k);
+                // отрезок нулевой длины с круглым концом — это точка; пока отражения нет, его не видно
+                reflection.setAttribute("opacity", k > 0 ? "1" : "0");
+                const done = String(stage(t, edges + extend + drop - 80, 120));
+                sumMark.setAttribute("opacity", done);
+                sumName?.setAttribute("opacity", done);
+            },
+        };
+    }
+
+    /**
      * Перерисовать построение; animate — по шагам: прямая через P и Q, третья точка, отражение, сумма.
      * @param {boolean} animate
      */
@@ -290,101 +425,88 @@ export function mountPlane() {
             document.activeElement instanceof SVGElement ? document.activeElement.dataset.handle : undefined;
         handles.replaceChildren();
 
-        const { P, Q, mode } = state;
-        const built = construction();
-        const clipped = svg("g", { "clip-path": "url(#plane-clip)" }, drawing);
-        const marks = svg("g", {}, drawing);
-        const at = (/** @type {RealPoint} */ p) => ({ x: toX(p.x), y: toY(p.y) });
-
-        if (built.kind === "vertical") {
-            // вертикаль через P и вторую точку: растёт от нижней из них вверх, за край рисунка, в нимб
-            const below = svg("line", { class: "ec-line" }, drawing);
-            const up = svg("line", { class: "ec-line" }, drawing);
-            const other = svg(
-                "circle",
-                { class: "ec-ring", cx: toX(built.other.x), cy: toY(built.other.y), r: 5.5 },
-                marks,
-            );
-            const nimbus = halo(marks, toX(P.x), 30);
-            const lowest = P.y < built.other.y ? at(P) : at(built.other);
-            if (mode !== "add") {
-                pointName(marks, toX(built.other.x), toY(built.other.y), "−P", "ec-name", EDGES);
+        const { P, Q, R, mode } = state;
+        const layers = {
+            clipped: svg("g", { "clip-path": "url(#plane-clip)" }, drawing),
+            marks: svg("g", {}, drawing),
+        };
+        /** @type {{ frame: (elapsed: number) => void, end: number }[]} */
+        const parts = [];
+        if (mode === "assoc") {
+            // (P + Q) + R сплошными прямыми, потом P + (Q + R) пунктирными; O в середине пути — без прямой
+            const { pq, qr } = associative();
+            const solid = { line: "ec-line", third: "", final: false, pace: BRISK };
+            const dashed = { line: "ec-line ec-line-alt", third: "", final: false, pace: BRISK };
+            let start = 0;
+            const first = addition(layers, P, Q, { ...solid, sum: "P + Q", start });
+            parts.push(first);
+            start = first.end;
+            if (pq !== null) {
+                const second = addition(layers, pq, R, { ...solid, sum: "", final: true, start });
+                parts.push(second);
+                start = second.end;
             }
-            stop = play(
-                GROW + EXTEND + DROP,
-                (elapsed) => {
-                    setPartial(below, { x: lowest.x, y: HEIGHT }, lowest, 1);
-                    below.setAttribute("opacity", String(stage(elapsed, 0, GROW)));
-                    setPartial(up, lowest, { x: lowest.x, y: 38 }, stage(elapsed, 0, GROW + EXTEND));
-                    other.setAttribute("opacity", String(stage(elapsed, GROW * 0.5, 120)));
-                    nimbus.setAttribute("opacity", String(stage(elapsed, GROW + EXTEND - 80, DROP)));
-                },
-                animate,
+            const third = addition(layers, Q, R, { ...dashed, sum: "Q + R", start });
+            parts.push(third);
+            start = third.end;
+            if (qr !== null) {
+                // подпись итога — под звездой: над ней тесно от прямых
+                parts.push(
+                    addition(layers, P, qr, {
+                        ...dashed,
+                        sum: "(P + Q) + R = P + (Q + R)",
+                        final: true,
+                        start,
+                        below: true,
+                    }),
+                );
+            }
+        } else if (mode === "inverse") {
+            const minus = { x: P.x, y: -P.y };
+            parts.push(
+                addition(layers, P, minus, { line: "ec-line", third: "", sum: "", final: true, start: 0, pace: 1 }),
             );
+            pointName(layers.marks, toX(minus.x), toY(minus.y), "−P", "ec-name", EDGES);
         } else {
-            const { lambda, third, sum } = built;
-            const line = svg("line", { class: "ec-line" }, clipped);
-            const drop = svg("line", { class: "ec-drop" }, clipped);
-            const ring = svg("circle", { class: "ec-ring", cx: toX(third.x), cy: toY(third.y), r: 5.5 }, marks);
-            const sumMark = star(marks, toX(sum.x), toY(sum.y), 30);
-            // подпись третьей точки — с той стороны, куда не уходит отражение
-            const thirdName = pointName(
-                marks,
-                toX(third.x),
-                toY(third.y),
-                mode === "add" ? "−(P + Q)" : "−2P",
-                "ec-name",
-                EDGES,
-                { below: third.y > 0 },
-            );
-            const sumName = pointName(
-                marks,
-                toX(sum.x) + 6,
-                toY(sum.y),
-                mode === "add" ? "P + Q" : "2P",
-                "ec-name-big",
-                EDGES,
-            );
-            // прямая растёт от P к Q, потом до третьей точки, потом до краёв; у касательной первого шага нет
-            const reach = built.tangent ? P.x : Q.x;
-            const left = Math.min(P.x, reach, third.x);
-            const right = Math.max(P.x, reach, third.x);
-            const second = built.tangent ? 0 : GROW;
-            const edges = second + GROW;
-            stop = play(
-                edges + EXTEND + DROP,
-                (elapsed) => {
-                    const toQ = stage(elapsed, 0, second);
-                    const toThird = stage(elapsed, second, GROW);
-                    const toEdges = stage(elapsed, edges, EXTEND);
-                    let from = Math.min(P.x, P.x + (reach - P.x) * toQ);
-                    let to = Math.max(P.x, P.x + (reach - P.x) * toQ);
-                    from += (Math.min(from, left) - from) * toThird;
-                    to += (Math.max(to, right) - to) * toThird;
-                    from += (X_MIN - 1 - from) * toEdges;
-                    to += (X_MAX + 1 - to) * toEdges;
-                    setSlanted(line, P, lambda, from, to);
-                    const seen = String(stage(elapsed, edges - 60, 120));
-                    ring.setAttribute("opacity", seen);
-                    thirdName.setAttribute("opacity", seen);
-                    setPartial(drop, at(third), at(sum), stage(elapsed, edges + EXTEND * 0.4, DROP));
-                    const done = String(stage(elapsed, edges + EXTEND + DROP - 80, 120));
-                    sumMark.setAttribute("opacity", done);
-                    sumName.setAttribute("opacity", done);
-                },
-                animate,
+            const second = mode === "double" ? P : Q;
+            const doubled = mode === "double" || (P.x === Q.x && P.y === Q.y);
+            parts.push(
+                addition(layers, P, second, {
+                    line: "ec-line",
+                    third: doubled ? "−2P" : "−(P + Q)",
+                    sum: doubled ? "2P" : "P + Q",
+                    final: true,
+                    start: 0,
+                    pace: 1,
+                }),
             );
         }
+        stop = play(
+            Math.max(0, ...parts.map((part) => part.end)),
+            (elapsed) => {
+                for (const part of parts) {
+                    part.frame(elapsed);
+                }
+            },
+            animate,
+        );
 
         // P и Q подписаны с внешних сторон, чтобы подписи не лезли на прямую между ними
-        const qOnRight = mode !== "add" || Q.x >= P.x;
-        pointName(marks, toX(P.x), toY(P.y), "P", "ec-name-big", EDGES, { left: qOnRight });
-        if (mode === "add" && !(P.x === Q.x && P.y === Q.y)) {
-            pointName(marks, toX(Q.x), toY(Q.y), "Q", "ec-name-big", EDGES, { left: !qOnRight });
+        const many = mode === "add" || mode === "assoc";
+        const qOnRight = !many || Q.x >= P.x;
+        pointName(layers.marks, toX(P.x), toY(P.y), "P", "ec-name-big", EDGES, { left: qOnRight });
+        if (many && !(P.x === Q.x && P.y === Q.y)) {
+            pointName(layers.marks, toX(Q.x), toY(Q.y), "Q", "ec-name-big", EDGES, { left: !qOnRight });
+        }
+        if (mode === "assoc") {
+            pointName(layers.marks, toX(R.x), toY(R.y), "R", "ec-name-big", EDGES, { left: true });
         }
         drawHandle("P", P);
-        if (mode === "add") {
+        if (many) {
             drawHandle("Q", Q);
+        }
+        if (mode === "assoc") {
+            drawHandle("R", R);
         }
         // после перерисовки фокус остаётся на той же ручке — стрелками можно двигать дальше
         if (focused) {
@@ -407,6 +529,7 @@ export function mountPlane() {
         curve = curveLines(a, b, X_FAR);
         state.P = snap(state.P);
         state.Q = snap(state.Q);
+        state.R = snap(state.R);
         for (const [name, value] of /** @type {["a" | "b", number][]} */ ([
             ["a", a],
             ["b", b],
@@ -454,7 +577,7 @@ export function mountPlane() {
     for (const button of modeButtons) {
         button.addEventListener("click", () => {
             const mode = button.dataset.mode;
-            if (mode !== "add" && mode !== "double" && mode !== "inverse") {
+            if (mode !== "add" && mode !== "double" && mode !== "inverse" && mode !== "assoc") {
                 throw new Error(`index.html: у кнопки нет режима (data-mode="${mode}")`);
             }
             state.mode = mode;
@@ -485,7 +608,7 @@ export function mountPlane() {
     handles.addEventListener("pointerdown", (event) => {
         const target = event.target instanceof Element ? event.target.closest("[data-handle]") : null;
         const which = target instanceof SVGElement ? target.dataset.handle : undefined;
-        if (which !== "P" && which !== "Q") {
+        if (which !== "P" && which !== "Q" && which !== "R") {
             return;
         }
         event.preventDefault();
@@ -524,7 +647,7 @@ export function mountPlane() {
     handles.addEventListener("keydown", (event) => {
         const which = event.target instanceof SVGElement ? event.target.dataset.handle : undefined;
         const steps = ARROWS.get(event.key);
-        if ((which !== "P" && which !== "Q") || steps === undefined) {
+        if ((which !== "P" && which !== "Q" && which !== "R") || steps === undefined) {
             return;
         }
         event.preventDefault();

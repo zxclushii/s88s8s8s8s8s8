@@ -2648,10 +2648,196 @@ body[data-screen="ec"] .term::before {
     font-size: 34px;
 }
 
-/* в «по модулю p» под рисунком ещё список точек: рисунок ниже, чтобы список влез в экран */
+/* в «по модулю p» над рисунком — виды, под ним — список точек: рисунок ниже, чтобы всё влезло в экран */
 .ec-field-panel .ec-plot,
-.ec-field-panel .ec-table {
-    max-height: calc(var(--plot-max) - 130px);
+.ec-field-panel .ec-table,
+.ec-field-panel .ec-solution {
+    max-height: calc(var(--plot-max) - 170px);
+}
+
+.ec-cipher-panel .ec-plot,
+.ec-cipher-panel .ec-solution {
+    max-height: calc(var(--plot-max) - 40px);
+}
+
+/* что показать на месте рисунка — словами в строку, открытое подчёркнуто */
+.ec-views {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+    margin: 0 0 1.6vh;
+}
+
+.ec-views button {
+    padding: 2px 0;
+    border: 0;
+    background: none;
+    color: var(--grey);
+    font: 400 13px var(--sans);
+    cursor: pointer;
+}
+
+.ec-views button[aria-pressed="true"] {
+    color: var(--white);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+}
+
+.ec-views button:disabled {
+    color: var(--s3);
+    cursor: default;
+}
+
+.ec-views button:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: 2px;
+}
+
+@media (hover: hover) {
+    .ec-views button:not([aria-pressed="true"], :disabled):hover {
+        color: var(--white-2);
+    }
+}
+
+/* ход вычисления — строками, как в тетради, с готическими номерами, как «счёт» в ленте лабы 9 */
+.ec-solution {
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: var(--s3) transparent;
+    scrollbar-width: thin;
+}
+
+.ec-solution[hidden] {
+    display: none;
+}
+
+.ec-solution-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 18px;
+}
+
+.ec-ways {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ec-ways button,
+.ec-solution-act {
+    padding: 7px 13px;
+    border: 0;
+    background: var(--s2);
+    color: var(--white-2);
+    font: 400 13px var(--sans);
+    cursor: pointer;
+}
+
+.ec-ways button[aria-pressed="true"] {
+    background: var(--white);
+    color: var(--ink);
+}
+
+.ec-solution-act {
+    background: var(--s1);
+    color: var(--white);
+}
+
+.ec-solution-act[hidden] {
+    display: none;
+}
+
+.ec-ways button:focus-visible,
+.ec-solution-act:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: 3px;
+}
+
+.ec-solution-title {
+    margin: 3vh 0 0;
+    color: var(--white);
+    font: italic 400 clamp(24px, 2vw, 32px) / 1.15 var(--serif);
+}
+
+.ec-solution-lines {
+    margin: 2.4vh 0 0;
+    padding: 0 0 0 2.2em;
+}
+
+.ec-solution-lines li {
+    margin-bottom: 1.2vh;
+    padding-left: 0.5em;
+}
+
+.ec-solution-lines li::marker {
+    color: var(--grey);
+    font: 400 20px var(--gothic);
+}
+
+.ec-line-f {
+    color: var(--white-2);
+    font: italic 400 22px/1.45 var(--serif);
+}
+
+.ec-line-a {
+    color: var(--white);
+    font: italic 400 22px/1.45 var(--serif);
+}
+
+.ec-line-n,
+.ec-line-mark {
+    color: var(--grey);
+    font: 400 14px/1.45 var(--sans);
+}
+
+.ec-line-wrong {
+    color: var(--white-2);
+}
+
+.ec-line-input {
+    width: 7.5em;
+    padding: 1px 8px;
+    border: 0;
+    outline: none;
+    background: var(--s1);
+    color: var(--white);
+    font: italic 400 22px/1.3 var(--serif);
+    caret-color: var(--white);
+}
+
+.ec-line-input:focus {
+    background: var(--s2);
+}
+
+.ec-line-mark .ec-ok {
+    margin: 0 4px 0 10px;
+}
+
+.ec-solution-verdict {
+    margin: 2vh 0 0;
+    color: var(--white);
+    font: italic 400 24px var(--serif);
+}
+
+/* таблицы поля: числа помельче, клик ничего не выбирает */
+.ec-table .ec-numbers {
+    font-size: 14px;
+}
+
+.ec-table .ec-numbers td {
+    cursor: default;
+}
+
+/* (P + Q) + R — сплошными прямыми, P + (Q + R) — пунктиром */
+.ec-line-alt {
+    stroke-dasharray: 7 5;
+}
+
+/* в шифре подгруппа базовой точки чуть ярче остальных точек: в ней живут ключи */
+.ec-subgroup circle {
+    fill: var(--white-2);
 }
 
 .ec-hasse {
