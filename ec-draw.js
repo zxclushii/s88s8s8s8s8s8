@@ -207,26 +207,37 @@ export function fieldScale(p, area) {
 
 /**
  * Неподвижная часть рисунка по модулю p: цифры осей, зеркало y = p/2 и все точки кривой.
+ * Зеркало есть только у эллиптических кривых: у них −P = (x; p − y).
  * @param {Element} parent
  * @param {number} p
  * @param {Field} field
  * @param {{ x: number, y: number }[]} points
+ * @param {boolean} [mirrored]
  */
-export function drawFieldBase(parent, p, field, points) {
+export function drawFieldBase(parent, p, field, points, mirrored = true) {
     const { X, Y, cell, area } = field;
     const step = Math.max(1, Math.ceil((p - 1) / 4));
     for (let tick = 0; tick < p; tick += step) {
         svgText(parent, X(tick), area.top + area.size + 22, String(tick), "ec-tick", "middle");
         svgText(parent, area.left - 10, Y(tick) + 4, String(tick), "ec-tick", "end");
     }
-    // −P = (x; p − y): точка и минус точка смотрят друг на друга через y = p/2
-    const mirror = Y(p / 2);
-    svg("line", { class: "ec-mirror", x1: area.left, y1: mirror, x2: area.left + area.size, y2: mirror }, parent);
-    svgText(parent, area.left + area.size, mirror - 9, "y = p/2", "ec-mirror-name", "end");
-    const radius = Math.min(3.6, Math.max(1.6, cell * 0.22));
-    for (const point of points) {
-        svg("circle", { class: "ec-dot", cx: X(point.x), cy: Y(point.y), r: radius }, parent);
+    if (mirrored) {
+        // −P = (x; p − y): точка и минус точка смотрят друг на друга через y = p/2
+        const mirror = Y(p / 2);
+        svg("line", { class: "ec-mirror", x1: area.left, y1: mirror, x2: area.left + area.size, y2: mirror }, parent);
+        svgText(parent, area.left + area.size, mirror - 9, "y = p/2", "ec-mirror-name", "end");
     }
+    for (const point of points) {
+        svg("circle", { class: "ec-dot", cx: X(point.x), cy: Y(point.y), r: dotRadius(cell) }, parent);
+    }
+}
+
+/**
+ * Радиус точки на сетке: при большом p клетки мелкие, и точки мельче, чтобы не слипались.
+ * @param {number} cell сторона клетки
+ */
+export function dotRadius(cell) {
+    return Math.min(3.6, Math.max(1.6, cell * 0.22));
 }
 
 /**

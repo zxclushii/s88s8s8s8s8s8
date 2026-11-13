@@ -2371,6 +2371,71 @@ body[data-screen="ec"] .term::before {
     color: var(--white);
 }
 
+/* любая кривая: поле для формулы шире поля для p */
+.ec-fields-free {
+    grid-template-columns: 1fr 96px;
+    grid-auto-flow: row;
+}
+
+.ec-field input[type="text"] {
+    width: 100%;
+    margin-top: 2px;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: none;
+    color: var(--white);
+    font: italic 400 26px/1.25 var(--serif);
+    caret-color: var(--white);
+}
+
+.ec-hint {
+    margin: 8px 0 0;
+    color: var(--grey);
+    font: 400 12px/1.45 var(--sans);
+}
+
+/* примеры — формулами, как в тетради; открытый подчёркнут, как точки в списке */
+.ec-examples {
+    display: grid;
+    justify-items: start;
+    gap: 2px;
+}
+
+.ec-examples button {
+    padding: 2px 0;
+    border: 0;
+    background: none;
+    color: var(--grey);
+    font: 400 13px/1.4 var(--sans);
+    text-align: left;
+    cursor: pointer;
+}
+
+.ec-examples button span {
+    margin-right: 6px;
+    color: var(--white-2);
+    font: italic 400 20px var(--serif);
+}
+
+.ec-examples button[aria-pressed="true"] span {
+    color: var(--white);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.ec-examples button:focus-visible {
+    outline: 1px solid var(--white-2);
+    outline-offset: 2px;
+}
+
+@media (hover: hover) {
+    .ec-examples button:hover span {
+        color: var(--white);
+    }
+}
+
 /* рисунки */
 
 .ec-plot {
@@ -2426,6 +2491,11 @@ body[data-screen="ec"] .term::before {
 
 .ec-dot {
     fill: var(--grey);
+}
+
+/* на «любой кривой» точки и есть ответ — они светлее, чем серые точки под построением */
+.ec-dot-free {
+    fill: var(--white-2);
 }
 
 .ec-linedot {

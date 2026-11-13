@@ -1,12 +1,13 @@
 // @ts-check
-// Папка elept1c curv3ss в work — программа к лабе 10 про эллиптические кривые. Три вкладки: на плоскости,
-// по модулю p и параметры; меню слева переключает их, как цепочка разделов в ленте лабы 9.
+// Папка elept1c curv3ss в work — программа к лабе 10 про эллиптические кривые. Четыре вкладки: на плоскости,
+// по модулю p, параметры и любая кривая (как ffplot); меню слева переключает их, как цепочка разделов в ленте лабы 9.
 // Вкладки 2 и 3 смотрят на одну кривую: поменяли a, b или p на одной — пересчиталось и на другой.
 
 import { LAB } from "./curve.js";
 import { byId } from "./dom.js";
 import { equation } from "./ec-draw.js";
 import { mountField } from "./ec-field.js";
+import { mountFree } from "./ec-free.js";
 import { mountParams } from "./ec-params.js";
 import { mountPlane } from "./ec-plane.js";
 import { createCurveStore, parseCurveField } from "./ec-store.js";
@@ -14,14 +15,14 @@ import { createCurveStore, parseCurveField } from "./ec-store.js";
 /** Имя папки — как его набирают в cd. */
 export const EC_FOLDER = "elept1c curv3ss";
 
-/** @typedef {"plane" | "field" | "params"} Tab */
+/** @typedef {"plane" | "field" | "params" | "free"} Tab */
 
 /**
  * @param {string | undefined} name
  * @returns {name is Tab}
  */
 function isTab(name) {
-    return name === "plane" || name === "field" || name === "params";
+    return name === "plane" || name === "field" || name === "params" || name === "free";
 }
 
 /**
@@ -31,11 +32,12 @@ function isTab(name) {
 export function mountEc() {
     const screen = byId("ec", HTMLElement);
     const store = createCurveStore({ ...LAB });
-    const tabs = { plane: mountPlane(), field: mountField(store), params: mountParams(store) };
+    const tabs = { plane: mountPlane(), field: mountField(store), params: mountParams(store), free: mountFree() };
     const panels = {
         plane: byId("ec-plane", HTMLElement),
         field: byId("ec-field", HTMLElement),
         params: byId("ec-params", HTMLElement),
+        free: byId("ec-free", HTMLElement),
     };
     const buttons = byId("ec-tabs", HTMLElement).querySelectorAll("button");
     /** @type {Tab} */

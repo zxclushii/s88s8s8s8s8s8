@@ -617,6 +617,13 @@
                             ><span class="chain-n">3</span><span class="chain-name">параметры</span>
                         </button>
                     </li>
+                    <li>
+                        <button type="button" data-tab="free" aria-controls="ec-free">
+                            <span class="chain-mark"
+                                ><svg class="chain-star" aria-hidden="true"><use href="#star" /></svg></span
+                            ><span class="chain-n">4</span><span class="chain-name">любая кривая</span>
+                        </button>
+                    </li>
                 </ol>
             </nav>
 
@@ -802,6 +809,84 @@
                     <p class="ec-note" id="params-note"></p>
                     <svg class="ec-hasse" id="params-hasse" viewBox="0 0 420 76" role="img"></svg>
                 </figure>
+            </section>
+
+            <section class="ec-panel ec-free-panel" id="ec-free" aria-labelledby="ec-free-h" hidden>
+                <header class="ec-head">
+                    <h2 class="ec-h" id="ec-free-h">любая кривая</h2>
+                    <p class="ec-meta">лаба 10 · любое уравнение или неравенство по модулю p — как ffplot</p>
+                    <p class="ec-eq">
+                        <span id="free-eq">y² + y = 3x³ + 2x² + x + 1</span>
+                        <span class="ec-eq-mod">(mod <span id="free-mod">53</span>)</span>
+                    </p>
+                </header>
+                <figure class="ec-figure">
+                    <svg
+                        class="ec-plot"
+                        id="free-plot"
+                        viewBox="0 0 640 700"
+                        preserveAspectRatio="xMinYMin meet"
+                        role="img"
+                    ></svg>
+                </figure>
+                <div class="ec-side">
+                    <div class="ec-fields ec-fields-free">
+                        <label class="ec-field">
+                            <span>формула</span>
+                            <input
+                                id="free-curve"
+                                type="text"
+                                value="y^2 + y = 3x^3 + 2x^2 + x + 1"
+                                spellcheck="false"
+                                autocomplete="off"
+                                autocapitalize="off"
+                            />
+                        </label>
+                        <label class="ec-field">
+                            <span>p</span>
+                            <input
+                                id="free-p"
+                                type="number"
+                                min="2"
+                                max="127"
+                                step="1"
+                                value="53"
+                                inputmode="numeric"
+                            />
+                        </label>
+                    </div>
+                    <p class="ec-hint">
+                        можно числа, x, y, скобки, + − · / ^ и знаки = &lt; &gt; ≤ ≥ ≠; 3x и y² тоже понимает
+                    </p>
+                    <p class="ec-label" id="free-examples-label">примеры из ffplot</p>
+                    <div class="ec-examples" id="free-examples" role="group" aria-labelledby="free-examples-label">
+                        <button
+                            type="button"
+                            data-formula="y^2 + y = 3x^3 + 2x^2 + x + 1"
+                            data-modulus="53"
+                            aria-pressed="true"
+                        >
+                            <span>y² + y = 3x³ + 2x² + x + 1</span> mod 53
+                        </button>
+                        <button type="button" data-formula="x^2 = y^2" data-modulus="109" aria-pressed="false">
+                            <span>x² = y²</span> mod 109 — крест
+                        </button>
+                        <button type="button" data-formula="y^2 = x^3 + 2x + 1" data-modulus="53" aria-pressed="false">
+                            <span>y² = x³ + 2x + 1</span> mod 53 — эллиптическая кривая
+                        </button>
+                        <button type="button" data-formula="x^2 + y^2 < 20" data-modulus="109" aria-pressed="false">
+                            <span>x² + y² &lt; 20</span> mod 109 — на плоскости был бы круг
+                        </button>
+                        <button type="button" data-formula="x*y < 14" data-modulus="109" aria-pressed="false">
+                            <span>x · y &lt; 14</span> mod 109
+                        </button>
+                        <button type="button" data-formula="y = 2^x" data-modulus="47" aria-pressed="false">
+                            <span>y = 2^x</span> mod 47
+                        </button>
+                    </div>
+                    <dl class="ec-out" id="free-out"></dl>
+                    <p class="ec-note" id="free-note" aria-live="polite"></p>
+                </div>
             </section>
         </section>
 
